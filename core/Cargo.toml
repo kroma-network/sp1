@@ -28,7 +28,7 @@ p3-poseidon2 = { workspace = true }
 p3-symmetric = { workspace = true }
 p3-uni-stark = { workspace = true }
 p3-util = { workspace = true }
-rrs-lib = { git = "https://github.com/GregAC/rrs.git" }
+rrs-lib = { git = "https://github.com/GregAC/rrs.git", branch = "main" }
 sp1-derive = { path = "../derive" }
 sp1-primitives = { path = "../primitives" }
 
