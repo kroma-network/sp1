@@ -1,0 +1,10 @@
+[workspace]
+[package]
+version = "0.1.0"
+name = "op-guest"
+edition = "2021"
+
+[dependencies]
+sp1-zkvm = { path = "../../zkvm/entrypoint" }
+guest-lib = { path = "../guest-lib" }
+guest-primitives = { path = "../guest-primitives" }
