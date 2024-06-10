@@ -1,0 +1,4 @@
+[workspace]
+exclude = ["op-guest"]
+members = ["op-script"]
+resolver = "2"
