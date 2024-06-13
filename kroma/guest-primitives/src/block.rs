@@ -61,6 +61,12 @@ pub struct Header {
     /// Shanghai update.
     #[serde(default)]
     pub withdrawals_root: Option<B256>,
+    #[serde(default)]
+    pub blob_gas_used: Option<U256>,
+    #[serde(default)]
+    pub excess_blob_gas: Option<U256>,
+    #[serde(default)]
+    pub parent_beacon_block_root: Option<B256>,
 }
 
 impl Default for Header {
@@ -84,6 +90,9 @@ impl Default for Header {
             nonce: B64::ZERO,
             base_fee_per_gas: U256::ZERO,
             withdrawals_root: None,
+            blob_gas_used: None,
+            excess_blob_gas: None,
+            parent_beacon_block_root: None,
         }
     }
 }
