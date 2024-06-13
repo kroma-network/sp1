@@ -21,7 +21,7 @@ pub async fn new_block_build_input(
     block_no: u64,
 ) -> BlockBuildInput<OptimismTxEssence> {
     let chain_spec = chain_spec.clone();
-    let cache_path = cache_dir.and_then(|dir| Some(cache_file_path(&dir, block_no, "json.gz")));
+    let cache_path = cache_dir.map(|dir| cache_file_path(&dir, block_no, "json.gz"));
 
     let preflight_result = tokio::task::spawn_blocking(move || {
         OptimismStrategy::preflight_with_external_data(&chain_spec, cache_path, rpc_url, block_no)

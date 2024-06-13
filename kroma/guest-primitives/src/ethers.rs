@@ -130,6 +130,9 @@ impl<T> TryFrom<EthersBlock<T>> for Header {
                 block.base_fee_per_gas.context("base_fee_per_gas missing")?,
             ),
             withdrawals_root: block.withdrawals_root.map(from_ethers_h256),
+            blob_gas_used: block.blob_gas_used.map(from_ethers_u256),
+            excess_blob_gas: block.excess_blob_gas.map(from_ethers_u256),
+            parent_beacon_block_root: block.parent_beacon_block_root.map(from_ethers_h256),
         })
     }
 }

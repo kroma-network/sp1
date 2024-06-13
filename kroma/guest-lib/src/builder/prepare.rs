@@ -115,6 +115,14 @@ impl HeaderPrepStrategy for EthHeaderPrepStrategy {
             timestamp,
             mix_hash: block_builder.input.state_input.mix_hash,
             extra_data: block_builder.input.state_input.extra_data.clone(),
+            blob_gas_used: Some(U256::ZERO),
+            excess_blob_gas: Some(U256::ZERO),
+            parent_beacon_block_root: block_builder
+                .input
+                .state_input
+                .parent_header
+                .parent_beacon_block_root,
+
             // do not fill the remaining fields
             ..Default::default()
         });

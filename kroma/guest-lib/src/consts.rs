@@ -65,15 +65,15 @@ pub const ETH_MAINNET_EIP1559_CONSTANTS: Eip1559Constants = Eip1559Constants {
 /// The Optimism mainnet specification.
 pub static OP_MAINNET_CHAIN_SPEC: Lazy<ChainSpec> = Lazy::new(|| ChainSpec {
     chain_id: 10,
-    max_spec_id: SpecId::CANYON,
+    max_spec_id: SpecId::ECOTONE,
     hard_forks: BTreeMap::from([
         (SpecId::BEDROCK, ForkCondition::Timestamp(1679079600)),
         // Regolith is activated from day 1 of Bedrock on mainnet
         (SpecId::REGOLITH, ForkCondition::Timestamp(1679079600)),
         // Canyon is activated 2024-01-11 at 17:00:01 UTC
         (SpecId::CANYON, ForkCondition::Timestamp(1704992401)),
-        // Delta is activated 2024-02-22 at 17:00:01 UTC
-        (SpecId::LATEST, ForkCondition::Timestamp(1708560000)),
+        // Ecotone is activated 2024-03-14 00:00:01 UTC (starts on the 117387811 block)
+        (SpecId::ECOTONE, ForkCondition::Timestamp(1710374401)),
     ]),
     gas_constants: BTreeMap::from([
         (
@@ -87,6 +87,15 @@ pub static OP_MAINNET_CHAIN_SPEC: Lazy<ChainSpec> = Lazy::new(|| ChainSpec {
         ),
         (
             SpecId::CANYON,
+            Eip1559Constants {
+                base_fee_change_denominator: uint!(250_U256),
+                base_fee_max_increase_denominator: uint!(10_U256),
+                base_fee_max_decrease_denominator: uint!(50_U256),
+                elasticity_multiplier: uint!(6_U256),
+            },
+        ),
+        (
+            SpecId::ECOTONE,
             Eip1559Constants {
                 base_fee_change_denominator: uint!(250_U256),
                 base_fee_max_increase_denominator: uint!(10_U256),
