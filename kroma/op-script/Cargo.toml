@@ -21,11 +21,7 @@ ethers-providers = { version = "2.0", features = ["optimism"] }
 log = "0.4"
 tokio = { version = "1.23", features = ["full"] }
 flate2 = "1.0.26"
-revm = { git = "https://github.com/sp1-patches/revm", branch = "patch-v5.0.0", default-features = false, features = [
-    "std",
-    "serde",
-    "optimism",
-] }
+revm = { workspace = true, features = ["std", "serde", "optimism"] }
 hashbrown = { version = "0.14.3", features = ["inline-more"] }
 
 [build-dependencies]

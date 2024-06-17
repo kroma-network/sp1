@@ -159,7 +159,7 @@ impl<E: TxEssence + Debug> Transaction<E> {
 
     /// Fully consumes the provided input RLP buffer to decode a Transaction instance
     pub fn decode_strict(buf: &mut &[u8]) -> anyhow::Result<Self> {
-        let result = Self::decode(buf)?;
+        let result = Self::decode(buf).unwrap();
         ensure!(buf.is_empty());
         Ok(result)
     }

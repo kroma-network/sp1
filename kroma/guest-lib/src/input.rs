@@ -22,8 +22,8 @@ use guest_primitives::{
     withdrawal::Withdrawal,
     Address, Bytes, B256, U256,
 };
-use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Represents the state of an account's storage.
 /// The storage trie together with the used storage slots allow us to reconstruct all the

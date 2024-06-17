@@ -64,11 +64,11 @@ pub enum Error {
     /// Represents errors related to the RLP encoding and decoding using the `alloy_rlp`
     /// library.
     #[error("RLP error")]
-    Rlp(#[from] alloy_rlp::Error),
+    Rlp(alloy_rlp::Error),
     /// Represents errors related to the RLP encoding and decoding, specifically legacy
     /// errors.
     #[error("RLP error")]
-    LegacyRlp(#[from] DecoderError),
+    LegacyRlp(DecoderError),
 }
 
 impl From<B256> for MptNode {
@@ -271,7 +271,10 @@ impl MptNode {
     /// This method allows for the deserialization of a previously serialized [MptNode].
     #[inline]
     pub fn decode(bytes: impl AsRef<[u8]>) -> Result<MptNode, Error> {
-        rlp::decode(bytes.as_ref()).map_err(Error::from)
+        match rlp::decode(bytes.as_ref()) {
+            Ok(node) => Ok(node),
+            Err(_) => Err(Error::Rlp(alloy_rlp::Error::Custom("rlp decode error"))),
+        }
     }
 
     /// Retrieves the underlying data of the node.
@@ -404,7 +407,7 @@ impl MptNode {
     #[inline]
     pub fn get_rlp<T: alloy_rlp::Decodable>(&self, key: &[u8]) -> Result<Option<T>, Error> {
         match self.get(key)? {
-            Some(mut bytes) => Ok(Some(T::decode(&mut bytes)?)),
+            Some(mut bytes) => Ok(Some(T::decode(&mut bytes).unwrap())),
             None => Ok(None),
         }
     }

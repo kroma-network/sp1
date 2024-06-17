@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use anyhow::{bail, Context, Result};
-use hashbrown::HashMap;
 use guest_primitives::trie::{to_encoded_path, MptNode, MptNodeData, MptNodeReference};
+use std::collections::HashMap;
 
 /// Parses proof bytes into a vector of MPT nodes.
 pub fn parse_proof(proof: &[impl AsRef<[u8]>]) -> Result<Vec<MptNode>> {
