@@ -14,9 +14,8 @@
 
 use anyhow::anyhow;
 use guest_primitives::{Address, B256, U256};
-use hashbrown::{hash_map::Entry, HashMap};
 use revm::{
-    primitives::{Account, AccountInfo, Bytecode},
+    primitives::{hash_map::Entry, Account, AccountInfo, Bytecode, HashMap},
     Database, DatabaseCommit,
 };
 use thiserror::Error as ThisError;

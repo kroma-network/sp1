@@ -24,9 +24,8 @@ use guest_primitives::{
     ethers::{from_ethers_bytes, from_ethers_u256},
     Address, B256, U256,
 };
-use hashbrown::HashMap;
 use revm::{
-    primitives::{Account, AccountInfo, Bytecode},
+    primitives::{Account, AccountInfo, Bytecode, HashMap},
     Database, DatabaseCommit,
 };
 

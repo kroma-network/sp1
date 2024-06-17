@@ -42,8 +42,8 @@ use guest_primitives::{
     withdrawal::Withdrawal,
     Address, B256, U256,
 };
-use hashbrown::{HashMap, HashSet};
 use log::{debug, info};
+use std::collections::{HashMap, HashSet};
 
 /// The initial data required to build a block as returned by the [Preflight].
 #[derive(Debug, Clone)]
@@ -237,7 +237,7 @@ impl<E: TxEssence> TryFrom<Data<E>> for BlockBuildInput<E> {
         for account in data.db.accounts.values() {
             let code = account.info.code.clone().context("missing code")?;
             if !code.is_empty() {
-                contracts.insert(code.bytecode);
+                contracts.insert(code.bytecode().clone());
             }
         }
 

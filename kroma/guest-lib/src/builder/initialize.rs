@@ -15,7 +15,6 @@
 use core::mem;
 
 use anyhow::{bail, Result};
-use hashbrown::HashMap;
 use guest_primitives::{
     keccak::{keccak, KECCAK_EMPTY},
     transactions::TxEssence,
@@ -23,7 +22,7 @@ use guest_primitives::{
     Bytes,
 };
 use revm::{
-    primitives::{AccountInfo, Bytecode, B256},
+    primitives::{AccountInfo, Bytecode, HashMap, B256},
     Database, DatabaseCommit,
 };
 

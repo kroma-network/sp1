@@ -125,11 +125,11 @@ impl TxExecStrategy<OptimismTxEssence> for OpTxExecStrategy {
                     }
 
                     // Initialize tx environment
-                    fill_deposit_tx_env(&mut evm.env_mut().tx, deposit, tx_from);
+                    fill_deposit_tx_env(&mut evm.context.env_mut().tx, deposit, tx_from);
                 }
                 OptimismTxEssence::Ethereum(essence) => {
                     fill_eth_tx_env(
-                        &mut evm.env_mut().tx,
+                        &mut evm.context.env_mut().tx,
                         alloy_rlp::encode(&tx),
                         essence,
                         tx_from,
@@ -155,7 +155,11 @@ impl TxExecStrategy<OptimismTxEssence> for OpTxExecStrategy {
                 tx.essence.tx_type(),
                 result.is_success(),
                 cumulative_gas_used,
-                result.logs().into_iter().map(|log| log.into()).collect(),
+                result
+                    .logs()
+                    .into_iter()
+                    .map(|log| (*log).clone().into())
+                    .collect(),
             );
             if let Some(nonce) = deposit_nonce {
                 receipt = receipt.with_deposit_nonce(nonce);
@@ -222,7 +226,7 @@ impl TxExecStrategy<OptimismTxEssence> for OpTxExecStrategy {
         // Leak memory, save cycles
         guest_mem_forget([tx_trie, receipt_trie]);
         // Return block builder with updated database
-        Ok(block_builder.with_db(evm.context.evm.db))
+        Ok(block_builder.with_db(evm.context.evm.inner.db))
     }
 }
 
