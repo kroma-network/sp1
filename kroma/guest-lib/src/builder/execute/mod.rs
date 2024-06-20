@@ -20,7 +20,6 @@ use guest_primitives::transactions::TxEssence;
 
 use super::BlockBuilder;
 
-pub(super) mod ethereum;
 pub(super) mod optimism;
 
 pub trait TxExecStrategy<E: TxEssence> {
