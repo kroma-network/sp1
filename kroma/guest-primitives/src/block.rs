@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use alloy_consensus::Header as AlloyHeader;
 use alloy_primitives::{b256, Address, BlockHash, BlockNumber, Bloom, Bytes, B256, B64, U256};
 use alloy_rlp_derive::RlpEncodable;
 use serde::{Deserialize, Serialize};
@@ -101,5 +102,30 @@ impl Header {
     /// Computes the hash of the block header.
     pub fn hash(&self) -> BlockHash {
         keccak(alloy_rlp::encode(self)).into()
+    }
+
+    pub fn to_alloy_header(&self) -> AlloyHeader {
+        AlloyHeader {
+            parent_hash: self.parent_hash,
+            ommers_hash: self.ommers_hash,
+            beneficiary: self.beneficiary,
+            state_root: self.state_root,
+            transactions_root: self.transactions_root,
+            receipts_root: self.receipts_root,
+            logs_bloom: self.logs_bloom,
+            difficulty: self.difficulty,
+            number: self.number,
+            gas_limit: self.gas_limit.to::<u128>(),
+            gas_used: self.gas_used.to::<u128>(),
+            timestamp: self.timestamp.to::<u64>(),
+            extra_data: self.extra_data.clone(),
+            mix_hash: self.mix_hash,
+            nonce: self.nonce,
+            base_fee_per_gas: Some(self.base_fee_per_gas.to::<u128>()),
+            withdrawals_root: self.withdrawals_root,
+            blob_gas_used: self.blob_gas_used.map(|gas| gas.to::<u128>()),
+            excess_blob_gas: self.excess_blob_gas.map(|gas| gas.to::<u128>()),
+            parent_beacon_block_root: self.parent_beacon_block_root,
+        }
     }
 }

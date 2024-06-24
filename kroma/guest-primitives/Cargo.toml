@@ -19,3 +19,4 @@ k256 = { version = "=0.13.3", features = [
 rlp = "0.5.2"
 thiserror = "1.0"
 revm-primitives = { version = "4.0", default_features = false }
+alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "cb95183", default-features = false }
