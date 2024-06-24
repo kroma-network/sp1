@@ -2146,6 +2146,7 @@ dependencies = [
 name = "guest-primitives"
 version = "0.1.0"
 dependencies = [
+ "alloy-consensus 0.1.0",
  "alloy-primitives",
  "alloy-rlp",
  "alloy-rlp-derive",
