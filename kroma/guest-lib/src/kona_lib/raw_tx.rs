@@ -2,6 +2,7 @@
 
 use alloy_primitives::Bytes;
 use alloy_rlp::{Decodable, Encodable};
+use guest_primitives::transactions::{Transaction, TxEssence};
 
 /// A raw transaction
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -44,4 +45,11 @@ impl AsRef<[u8]> for RawTransaction {
     fn as_ref(&self) -> &[u8] {
         self.0.as_ref()
     }
+}
+
+/// Conversion from `Transaction` to the local [RawTransaction].
+pub fn from_native_tx<E: TxEssence + Encodable>(tx: &Transaction<E>) -> RawTransaction {
+    let mut rlp_buf = Vec::new();
+    tx.encode(&mut rlp_buf);
+    RawTransaction::from(rlp_buf)
 }
