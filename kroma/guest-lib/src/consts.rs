@@ -17,12 +17,13 @@ extern crate alloc;
 
 use std::collections::BTreeMap;
 
+use alloy_eips::eip1559::BaseFeeParams;
 use anyhow::{bail, Result};
 use guest_primitives::{uint, BlockNumber, ChainId, U256};
 use once_cell::sync::Lazy;
 use revm::primitives::SpecId;
 use serde::{Deserialize, Serialize};
-use superchain_primitives::OP_CANYON_BASE_FEE_PARAMS;
+use superchain_primitives::{RollupConfig, OP_BASE_FEE_PARAMS, OP_CANYON_BASE_FEE_PARAMS};
 
 /// U256 representation of 0.
 pub const ZERO: U256 = U256::ZERO;
@@ -57,32 +58,32 @@ pub static OP_MAINNET_CHAIN_SPEC: Lazy<ChainSpec> = Lazy::new(|| {
         elasticity_multiplier: U256::from(OP_CANYON_BASE_FEE_PARAMS.elasticity_multiplier),
     };
     ChainSpec {
-    chain_id: 10,
-    max_spec_id: SpecId::ECOTONE,
-    hard_forks: BTreeMap::from([
+        chain_id: 10,
+        max_spec_id: SpecId::ECOTONE,
+        hard_forks: BTreeMap::from([
             (SpecId::BEDROCK, ForkCondition::Timestamp(BEDROCK_TIME)),
-        // Regolith is activated from day 1 of Bedrock on mainnet
+            // Regolith is activated from day 1 of Bedrock on mainnet
             (SpecId::REGOLITH, ForkCondition::Timestamp(REGOLITH_TIME)),
-        // Canyon is activated 2024-01-11 at 17:00:01 UTC
+            // Canyon is activated 2024-01-11 at 17:00:01 UTC
             (SpecId::CANYON, ForkCondition::Timestamp(CANYON_TIME)),
-        // Ecotone is activated 2024-03-14 00:00:01 UTC (starts on the 117387811 block)
+            // Ecotone is activated 2024-03-14 00:00:01 UTC (starts on the 117387811 block)
             (SpecId::ECOTONE, ForkCondition::Timestamp(ECOTONE_TIME)),
-    ]),
-    gas_constants: BTreeMap::from([
-        (
-            SpecId::BEDROCK,
-            Eip1559Constants {
+        ]),
+        gas_constants: BTreeMap::from([
+            (
+                SpecId::BEDROCK,
+                Eip1559Constants {
                     base_fee_change_denominator: U256::from(
                         OP_BASE_FEE_PARAMS.max_change_denominator,
                     ),
-                base_fee_max_increase_denominator: uint!(10_U256),
-                base_fee_max_decrease_denominator: uint!(50_U256),
-                elasticity_multiplier: uint!(6_U256),
-            },
-        ),
+                    base_fee_max_increase_denominator: uint!(10_U256),
+                    base_fee_max_decrease_denominator: uint!(50_U256),
+                    elasticity_multiplier: uint!(6_U256),
+                },
+            ),
             (SpecId::CANYON, canyon_constants),
             (SpecId::ECOTONE, canyon_constants),
-    ]),
+        ]),
     }
 });
 
@@ -174,5 +175,27 @@ impl ChainSpec {
             }
         }
         None
+    }
+
+    pub fn to_rollup_config(&self) -> RollupConfig {
+        RollupConfig {
+            l2_chain_id: self.chain_id(),
+            regolith_time: Some(REGOLITH_TIME),
+            canyon_time: Some(CANYON_TIME),
+            ecotone_time: Some(ECOTONE_TIME),
+            base_fee_params: OP_BASE_FEE_PARAMS,
+            canyon_base_fee_params: Some(OP_CANYON_BASE_FEE_PARAMS),
+            ..Default::default()
+        }
+    }
+
+    pub fn get_base_fee_params(&self, spec_id: SpecId) -> BaseFeeParams {
+        match spec_id {
+            SpecId::CANYON | SpecId::ECOTONE => self
+                .to_rollup_config()
+                .canyon_base_fee_params
+                .expect("Canyon base fee params not provided"),
+            _ => self.to_rollup_config().base_fee_params,
+        }
     }
 }
