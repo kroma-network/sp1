@@ -63,6 +63,8 @@ pub struct StateInput<E: TxEssence> {
     pub transactions: Vec<Transaction<E>>,
     /// List of stake withdrawals for execution
     pub withdrawals: Vec<Withdrawal>,
+    /// Hash of parent beacon block
+    pub parent_beacon_block_root: B256,
 }
 
 impl<E: TxEssence + Serialize> StateInput<E> {

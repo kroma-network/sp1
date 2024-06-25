@@ -117,11 +117,9 @@ impl HeaderPrepStrategy for EthHeaderPrepStrategy {
             extra_data: block_builder.input.state_input.extra_data.clone(),
             blob_gas_used: Some(U256::ZERO),
             excess_blob_gas: Some(U256::ZERO),
-            parent_beacon_block_root: block_builder
-                .input
-                .state_input
-                .parent_header
-                .parent_beacon_block_root,
+            parent_beacon_block_root: Some(
+                block_builder.input.state_input.parent_beacon_block_root,
+            ),
 
             // do not fill the remaining fields
             ..Default::default()
