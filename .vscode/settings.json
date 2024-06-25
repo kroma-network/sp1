@@ -9,18 +9,22 @@
         100
     ],
     "rust-analyzer.check.overrideCommand": [
-        "cargo",
-        "clippy",
-        "--workspace",
-        "--message-format=json",
-        "--all-features",
-        "--all-targets",
-        "--",
-        "-A",
-        "incomplete-features"
+        // "cargo",
+        // "clippy",
+        // "--workspace",
+        // "--message-format=json",
+        // "--all-features",
+        // "--all-targets",
+        // "--",
+        // "-A",
+        // "incomplete-features"
     ],
     "rust-analyzer.linkedProjects": [
         "Cargo.toml",
+        "kroma/op-guest/Cargo.toml",
+        "kroma/op-script/Cargo.toml",
+        "kroma/guest-lib/Cargo.toml",
+        "kroma/guest-primitives/Cargo.toml",
         // // Examples.
         // "examples/chess/program/Cargo.toml",
         // "examples/chess/script/Cargo.toml",
