@@ -22,6 +22,7 @@ use guest_primitives::{uint, BlockNumber, ChainId, U256};
 use once_cell::sync::Lazy;
 use revm::primitives::SpecId;
 use serde::{Deserialize, Serialize};
+use superchain_primitives::OP_CANYON_BASE_FEE_PARAMS;
 
 /// U256 representation of 0.
 pub const ZERO: U256 = U256::ZERO;
@@ -42,68 +43,47 @@ pub const MAX_BLOCK_HASH_AGE: u64 = 256;
 /// Multiplier for converting gwei to wei.
 pub const GWEI_TO_WEI: U256 = uint!(1_000_000_000_U256);
 
-/// The Ethereum mainnet specification.
-pub static ETH_MAINNET_CHAIN_SPEC: Lazy<ChainSpec> = Lazy::new(|| ChainSpec {
-    chain_id: 1,
-    max_spec_id: SpecId::SHANGHAI,
-    hard_forks: BTreeMap::from([
-        (SpecId::MERGE, ForkCondition::Block(15537394)),
-        (SpecId::SHANGHAI, ForkCondition::Timestamp(1681338455)),
-        (SpecId::CANCUN, ForkCondition::Timestamp(1710338135)),
-    ]),
-    gas_constants: BTreeMap::from([(SpecId::LONDON, ETH_MAINNET_EIP1559_CONSTANTS)]),
-});
-
-/// The Ethereum mainnet EIP-1559 gas constants.
-pub const ETH_MAINNET_EIP1559_CONSTANTS: Eip1559Constants = Eip1559Constants {
-    base_fee_change_denominator: uint!(8_U256),
-    base_fee_max_increase_denominator: uint!(8_U256),
-    base_fee_max_decrease_denominator: uint!(8_U256),
-    elasticity_multiplier: uint!(2_U256),
-};
+pub const BEDROCK_TIME: u64 = 1679079600;
+pub const REGOLITH_TIME: u64 = 1679079600;
+pub const CANYON_TIME: u64 = 1704992401;
+pub const ECOTONE_TIME: u64 = 1710374401;
 
 /// The Optimism mainnet specification.
-pub static OP_MAINNET_CHAIN_SPEC: Lazy<ChainSpec> = Lazy::new(|| ChainSpec {
+pub static OP_MAINNET_CHAIN_SPEC: Lazy<ChainSpec> = Lazy::new(|| {
+    let canyon_constants = Eip1559Constants {
+        base_fee_change_denominator: U256::from(OP_CANYON_BASE_FEE_PARAMS.max_change_denominator),
+        base_fee_max_increase_denominator: uint!(10_U256),
+        base_fee_max_decrease_denominator: uint!(50_U256),
+        elasticity_multiplier: U256::from(OP_CANYON_BASE_FEE_PARAMS.elasticity_multiplier),
+    };
+    ChainSpec {
     chain_id: 10,
     max_spec_id: SpecId::ECOTONE,
     hard_forks: BTreeMap::from([
-        (SpecId::BEDROCK, ForkCondition::Timestamp(1679079600)),
+            (SpecId::BEDROCK, ForkCondition::Timestamp(BEDROCK_TIME)),
         // Regolith is activated from day 1 of Bedrock on mainnet
-        (SpecId::REGOLITH, ForkCondition::Timestamp(1679079600)),
+            (SpecId::REGOLITH, ForkCondition::Timestamp(REGOLITH_TIME)),
         // Canyon is activated 2024-01-11 at 17:00:01 UTC
-        (SpecId::CANYON, ForkCondition::Timestamp(1704992401)),
+            (SpecId::CANYON, ForkCondition::Timestamp(CANYON_TIME)),
         // Ecotone is activated 2024-03-14 00:00:01 UTC (starts on the 117387811 block)
-        (SpecId::ECOTONE, ForkCondition::Timestamp(1710374401)),
+            (SpecId::ECOTONE, ForkCondition::Timestamp(ECOTONE_TIME)),
     ]),
     gas_constants: BTreeMap::from([
         (
             SpecId::BEDROCK,
             Eip1559Constants {
-                base_fee_change_denominator: uint!(50_U256),
+                    base_fee_change_denominator: U256::from(
+                        OP_BASE_FEE_PARAMS.max_change_denominator,
+                    ),
                 base_fee_max_increase_denominator: uint!(10_U256),
                 base_fee_max_decrease_denominator: uint!(50_U256),
                 elasticity_multiplier: uint!(6_U256),
             },
         ),
-        (
-            SpecId::CANYON,
-            Eip1559Constants {
-                base_fee_change_denominator: uint!(250_U256),
-                base_fee_max_increase_denominator: uint!(10_U256),
-                base_fee_max_decrease_denominator: uint!(50_U256),
-                elasticity_multiplier: uint!(6_U256),
-            },
-        ),
-        (
-            SpecId::ECOTONE,
-            Eip1559Constants {
-                base_fee_change_denominator: uint!(250_U256),
-                base_fee_max_increase_denominator: uint!(10_U256),
-                base_fee_max_decrease_denominator: uint!(50_U256),
-                elasticity_multiplier: uint!(6_U256),
-            },
-        ),
+            (SpecId::CANYON, canyon_constants),
+            (SpecId::ECOTONE, canyon_constants),
     ]),
+    }
 });
 
 /// The condition at which a fork is activated.
