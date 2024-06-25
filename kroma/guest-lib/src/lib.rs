@@ -17,6 +17,7 @@ extern crate alloc;
 pub mod builder;
 pub mod consts;
 pub mod input;
+pub mod kona_lib;
 pub mod mem_db;
 pub mod output;
 
