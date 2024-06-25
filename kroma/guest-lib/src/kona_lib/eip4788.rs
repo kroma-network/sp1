@@ -12,8 +12,6 @@ use revm::{
 };
 use superchain_primitives::RollupConfig;
 
-use crate::kona_lib::attributes::L2PayloadAttributes;
-
 /// Execute the EIP-4788 pre-block beacon root contract call.
 pub fn pre_block_beacon_root_contract_call<DB: Database + DatabaseCommit>(
     db: &mut DB,
@@ -21,7 +19,8 @@ pub fn pre_block_beacon_root_contract_call<DB: Database + DatabaseCommit>(
     block_number: u64,
     initialized_cfg: &CfgEnvWithHandlerCfg,
     initialized_block_env: &BlockEnv,
-    payload: &L2PayloadAttributes,
+    timestamp: u64,
+    parent_beacon_block_root: Option<B256>,
 ) -> Result<()>
 where
     DB::Error: core::fmt::Debug,
@@ -39,9 +38,9 @@ where
     // initialize a block from the env, because the pre block call needs the block itself
     apply_beacon_root_contract_call(
         config,
-        payload.timestamp,
+        timestamp,
         block_number,
-        payload.parent_beacon_block_root,
+        parent_beacon_block_root,
         &mut evm_pre_block,
     )
 }
