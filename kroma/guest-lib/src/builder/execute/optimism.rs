@@ -13,28 +13,25 @@
 // limitations under the License.
 
 use super::TxExecStrategy;
-use crate::{builder::BlockBuilder, consts, guest_mem_forget};
-use anyhow::{anyhow, bail, Context, Result};
-use core::{fmt::Debug, mem::take};
-use guest_primitives::{
-    alloy_rlp,
-    receipt::Receipt,
-    transactions::{
-        ethereum::{EthereumTxEssence, TransactionKind},
-        optimism::{OptimismTxEssence, TxEssenceOptimismDeposited},
-        TxEssence,
+use crate::{
+    builder::BlockBuilder,
+    kona_lib::{
+        eip4788::pre_block_beacon_root_contract_call,
+        executor::StatelessL2BlockExecutor,
+        executor_util::{
+            extract_tx_gas_limit, is_system_transaction, logs_bloom, receipt_envelope_from_parts,
+        },
+        raw_tx::{from_native_tx, RawTransaction},
     },
-    trie::{MptNode, EMPTY_ROOT},
-    Bloom, Bytes,
 };
+use alloy_primitives::U256;
+use anyhow::{anyhow, Result};
+use guest_primitives::{transactions::optimism::OptimismTxEssence, trie::EMPTY_ROOT};
 #[cfg(not(target_os = "zkvm"))]
-use log::trace;
-use revm::{
-    interpreter::Host,
-    primitives::{Address, ResultAndState, SpecId, TransactTo, TxEnv},
-    Database, DatabaseCommit, Evm,
-};
-use ruint::aliases::U256;
+use op_alloy_consensus::{Decodable2718, OpReceiptEnvelope, OpTxEnvelope};
+use revm::{primitives::EnvWithHandlerCfg, Database, DatabaseCommit, Evm};
+
+use core::fmt::Debug;
 
 pub struct OpTxExecStrategy {}
 
@@ -46,268 +43,117 @@ impl TxExecStrategy<OptimismTxEssence> for OpTxExecStrategy {
         D: Database + DatabaseCommit,
         <D as Database>::Error: Debug,
     {
-        let spec_id = block_builder.spec_id.expect("Spec ID is not initialized");
-        let header = block_builder
-            .header
-            .as_mut()
-            .expect("Header is not initialized");
+        let rollup_config = block_builder.chain_spec.to_rollup_config();
+        let initialized_cfg = block_builder.evm_cfg_env();
+        let initialized_block_env = block_builder.block_env();
 
-        let chain_id = block_builder.chain_spec.chain_id();
-        let mut evm = Evm::builder()
-            .with_db(block_builder.db.take().unwrap())
-            .optimism()
-            .with_spec_id(spec_id)
-            .modify_block_env(|blk_env| {
-                // set the EVM block environment
-                blk_env.number = header.number.try_into().unwrap();
-                blk_env.coinbase = block_builder.input.state_input.beneficiary;
-                blk_env.timestamp = header.timestamp;
-                blk_env.difficulty = U256::ZERO;
-                blk_env.prevrandao = Some(header.mix_hash);
-                blk_env.basefee = header.base_fee_per_gas;
-                blk_env.gas_limit = block_builder.input.state_input.gas_limit;
+        let header = block_builder.header.as_mut().unwrap();
+        let gas_limit = header.gas_limit.to::<u64>();
+        let timestamp = header.timestamp.to::<u64>();
+        let mut db = block_builder
+            .db
+            .take()
+            .expect("Database is not initialized");
+
+        pre_block_beacon_root_contract_call(
+            &mut db,
+            &rollup_config,
+            initialized_block_env.number.to::<u64>(),
+            &initialized_cfg,
+            &initialized_block_env,
+            timestamp,
+            Some(block_builder.input.state_input.parent_beacon_block_root),
+        )?;
+
+        // Ensure that the create2 contract is deployed upon transition to the Canyon hard fork.
+        // ensure_create2_deployer_canyon(&mut self.state, self.config, payload.timestamp)?;
+
+        let raw_txs: Vec<RawTransaction> = block_builder
+            .input
+            .state_input
+            .transactions
+            .iter()
+            .map(from_native_tx)
+            .collect();
+
+        let transactions = raw_txs
+            .iter()
+            .map(|raw_tx| {
+                let tx = OpTxEnvelope::decode_2718(&mut raw_tx.as_ref()).map_err(|e| anyhow!(e))?;
+                Ok((tx, raw_tx.as_ref()))
             })
-            .modify_cfg_env(|cfg_env| {
-                // set the EVM configuration
-                cfg_env.chain_id = chain_id;
-            })
-            .build();
+            .collect::<Result<Vec<_>>>()?;
 
-        // bloom filter over all transaction logs
-        let mut logs_bloom = Bloom::default();
-        // keep track of the gas used over all transactions
-        let mut cumulative_gas_used = consts::ZERO;
-
-        // process all the transactions
-        let mut tx_trie = MptNode::default();
-        let mut receipt_trie = MptNode::default();
-        for (tx_no, tx) in take(&mut block_builder.input.state_input.transactions)
-            .into_iter()
-            .enumerate()
-        {
-            // verify the transaction signature
-            let tx_from = tx
-                .recover_from()
-                .with_context(|| format!("Error recovering address for transaction {}", tx_no))?;
-
-            #[cfg(not(target_os = "zkvm"))]
+        let is_regolith = rollup_config.is_regolith_active(timestamp);
+        let mut cumulative_gas_used = 0u64;
+        let mut receipts: Vec<OpReceiptEnvelope> = Vec::with_capacity(raw_txs.len());
+        for (transaction, raw_transaction) in transactions {
+            let block_available_gas = (gas_limit - cumulative_gas_used) as u128;
+            if extract_tx_gas_limit(&transaction) > block_available_gas
+                && (is_regolith || !is_system_transaction(&transaction))
             {
-                let tx_hash = tx.hash();
-                trace!("Tx no. {} (hash: {})", tx_no, tx_hash);
-                trace!("  Type: {}", tx.essence.tx_type());
-                trace!("  Fr: {:?}", tx_from);
-                trace!("  To: {:?}", tx.essence.to().unwrap_or_default());
+                anyhow::bail!("Transaction gas limit exceeds block gas limit")
             }
 
-            // verify transaction gas
-            let block_available_gas =
-                block_builder.input.state_input.gas_limit - cumulative_gas_used;
-            if block_available_gas < tx.essence.gas_limit() {
-                bail!("Error at transaction {}: gas exceeds block limit", tx_no);
-            }
+            let mut evm = Evm::builder()
+                .with_db(&mut db)
+                .with_env_with_handler_cfg(EnvWithHandlerCfg::new_with_cfg_env(
+                    initialized_cfg.clone(),
+                    initialized_block_env.clone(),
+                    StatelessL2BlockExecutor::prepare_tx_env(&transaction, raw_transaction)?,
+                ))
+                .build();
 
-            // cache account nonce if the transaction is a deposit, starting with Canyon
-            let deposit_nonce = (spec_id >= SpecId::CANYON
-                && matches!(tx.essence, OptimismTxEssence::OptimismDeposited(_)))
-            .then(|| {
-                let db = &mut evm.context.evm.db;
-                let account = db.basic(tx_from).expect("Depositor account not found");
-                account.unwrap_or_default().nonce
-            });
-
-            match &tx.essence {
-                OptimismTxEssence::OptimismDeposited(deposit) => {
-                    #[cfg(not(target_os = "zkvm"))]
-                    {
-                        trace!("  Source: {:?}", &deposit.source_hash);
-                        trace!("  Mint: {:?}", &deposit.mint);
-                        trace!("  System Tx: {:?}", deposit.is_system_tx);
+            // If the transaction is a deposit, cache the depositor account.
+            //
+            // This only needs to be done post-Regolith, as deposit nonces were not included in
+            // Bedrock. In addition, non-deposit transactions do not have deposit
+            // nonces.
+            let depositor = is_regolith
+                .then(|| {
+                    if let OpTxEnvelope::Deposit(deposit) = &transaction {
+                        let db = &mut evm.context.evm.db;
+                        db.basic(deposit.from).expect("Depositor account not found")
+                    } else {
+                        None
                     }
+                })
+                .flatten();
 
-                    // Initialize tx environment
-                    fill_deposit_tx_env(&mut evm.context.env_mut().tx, deposit, tx_from);
-                }
-                OptimismTxEssence::Ethereum(essence) => {
-                    fill_eth_tx_env(
-                        &mut evm.context.env_mut().tx,
-                        alloy_rlp::encode(&tx),
-                        essence,
-                        tx_from,
-                    );
-                }
-            };
+            // Execute the transaction.
+            let result = evm
+                .transact_commit()
+                .map_err(|_| anyhow!("Fatal EVM Error"))?;
 
-            // process the transaction
-            let ResultAndState { result, state } = evm
-                .transact()
-                .map_err(|evm_err| anyhow!("Error at transaction {}: {:?}", tx_no, evm_err))
-                // todo: change unrecoverable panic to host-side recoverable `Result`
-                .expect("Block construction failure.");
+            // Accumulate the gas used by the transaction.
+            cumulative_gas_used += result.gas_used();
 
-            let gas_used = result.gas_used().try_into().unwrap();
-            cumulative_gas_used = cumulative_gas_used.checked_add(gas_used).unwrap();
-
-            #[cfg(not(target_os = "zkvm"))]
-            trace!("  Ok: {:?}", result);
-
-            // create the receipt from the EVM result
-            let mut receipt = Receipt::new(
-                tx.essence.tx_type(),
+            // Create receipt envelope.
+            let receipt = receipt_envelope_from_parts(
                 result.is_success(),
-                cumulative_gas_used,
-                result
-                    .logs()
-                    .into_iter()
-                    .map(|log| (*log).clone().into())
-                    .collect(),
+                cumulative_gas_used as u128,
+                result.logs(),
+                transaction.tx_type(),
+                depositor.as_ref().map(|depositor| depositor.nonce),
+                depositor
+                    .is_some()
+                    .then(|| rollup_config.is_canyon_active(timestamp).then_some(1))
+                    .flatten(),
             );
-            if let Some(nonce) = deposit_nonce {
-                receipt = receipt.with_deposit_nonce(nonce);
-            }
 
-            // update account states
-            #[cfg(not(target_os = "zkvm"))]
-            for (address, account) in &state {
-                if account.is_touched() {
-                    // log account
-                    trace!(
-                        "  State {:?} (is_selfdestructed={}, is_loaded_as_not_existing={}, is_created={})",
-                        address,
-                        account.is_selfdestructed(),
-                        account.is_loaded_as_not_existing(),
-                        account.is_created()
-                    );
-                    // log balance changes
-                    trace!(
-                        "     After balance: {} (Nonce: {})",
-                        account.info.balance,
-                        account.info.nonce
-                    );
-
-                    // log state changes
-                    for (addr, slot) in &account.storage {
-                        if slot.is_changed() {
-                            trace!("    Storage address: {:?}", addr);
-                            trace!("      Before: {:?}", slot.original_value());
-                            trace!("       After: {:?}", slot.present_value());
-                        }
-                    }
-                }
-            }
-
-            evm.context.evm.db.commit(state);
-
-            // accumulate logs to the block bloom filter
-            logs_bloom.accrue_bloom(&receipt.payload.logs_bloom);
-
-            // Add receipt and tx to tries
-            let trie_key = alloy_rlp::encode(tx_no);
-            tx_trie
-                .insert_rlp(&trie_key, tx)
-                // todo: change unrecoverable panic to host-side recoverable `Result`
-                .expect("failed to insert transaction");
-            receipt_trie
-                .insert_rlp(&trie_key, receipt)
-                // todo: change unrecoverable panic to host-side recoverable `Result`
-                .expect("failed to insert receipt");
+            receipts.push(receipt);
         }
 
         // Update result header with computed values
-        header.transactions_root = tx_trie.hash();
-        header.receipts_root = receipt_trie.hash();
-        header.logs_bloom = logs_bloom;
-        header.gas_used = cumulative_gas_used;
-        header.withdrawals_root = if spec_id < SpecId::CANYON {
-            None
-        } else {
-            Some(EMPTY_ROOT)
-        };
+        header.transactions_root =
+            StatelessL2BlockExecutor::compute_transactions_root(raw_txs.as_slice());
+        header.receipts_root =
+            StatelessL2BlockExecutor::compute_receipts_root(&receipts, &rollup_config, timestamp);
+        header.logs_bloom = logs_bloom(receipts.iter().flat_map(|receipt| receipt.logs()));
+        header.gas_used = U256::from(cumulative_gas_used);
+        header.withdrawals_root = Some(EMPTY_ROOT);
 
-        // Leak memory, save cycles
-        guest_mem_forget([tx_trie, receipt_trie]);
         // Return block builder with updated database
-        Ok(block_builder.with_db(evm.context.evm.inner.db))
+        Ok(block_builder.with_db(db))
     }
-}
-
-fn fill_deposit_tx_env(tx_env: &mut TxEnv, essence: &TxEssenceOptimismDeposited, caller: Address) {
-    // initialize additional optimism tx fields
-    tx_env.optimism.source_hash = Some(essence.source_hash);
-    tx_env.optimism.mint = Some(essence.mint.try_into().unwrap());
-    tx_env.optimism.is_system_transaction = Some(essence.is_system_tx);
-    tx_env.optimism.enveloped_tx = None; // only used for non-deposit txs
-
-    tx_env.caller = caller; // previously overridden to tx.from
-    tx_env.gas_limit = essence.gas_limit.try_into().unwrap();
-    tx_env.gas_price = U256::ZERO;
-    tx_env.gas_priority_fee = None;
-    tx_env.transact_to = if let TransactionKind::Call(to_addr) = essence.to {
-        TransactTo::Call(to_addr)
-    } else {
-        TransactTo::create()
-    };
-    tx_env.value = essence.value;
-    tx_env.data = essence.data.clone();
-    tx_env.chain_id = None;
-    tx_env.nonce = None;
-    tx_env.access_list.clear();
-}
-
-fn fill_eth_tx_env(tx_env: &mut TxEnv, tx: Vec<u8>, essence: &EthereumTxEssence, caller: Address) {
-    // initialize additional optimism tx fields
-    tx_env.optimism.source_hash = None;
-    tx_env.optimism.mint = None;
-    tx_env.optimism.is_system_transaction = Some(false);
-    tx_env.optimism.enveloped_tx = Some(Bytes::from(tx));
-
-    match essence {
-        EthereumTxEssence::Legacy(tx) => {
-            tx_env.caller = caller;
-            tx_env.gas_limit = tx.gas_limit.try_into().unwrap();
-            tx_env.gas_price = tx.gas_price;
-            tx_env.gas_priority_fee = None;
-            tx_env.transact_to = if let TransactionKind::Call(to_addr) = tx.to {
-                TransactTo::Call(to_addr)
-            } else {
-                TransactTo::create()
-            };
-            tx_env.value = tx.value;
-            tx_env.data = tx.data.clone();
-            tx_env.chain_id = tx.chain_id;
-            tx_env.nonce = Some(tx.nonce);
-            tx_env.access_list.clear();
-        }
-        EthereumTxEssence::Eip2930(tx) => {
-            tx_env.caller = caller;
-            tx_env.gas_limit = tx.gas_limit.try_into().unwrap();
-            tx_env.gas_price = tx.gas_price;
-            tx_env.gas_priority_fee = None;
-            tx_env.transact_to = if let TransactionKind::Call(to_addr) = tx.to {
-                TransactTo::Call(to_addr)
-            } else {
-                TransactTo::create()
-            };
-            tx_env.value = tx.value;
-            tx_env.data = tx.data.clone();
-            tx_env.chain_id = Some(tx.chain_id);
-            tx_env.nonce = Some(tx.nonce);
-            tx_env.access_list = tx.access_list.clone().into();
-        }
-        EthereumTxEssence::Eip1559(tx) => {
-            tx_env.caller = caller;
-            tx_env.gas_limit = tx.gas_limit.try_into().unwrap();
-            tx_env.gas_price = tx.max_fee_per_gas;
-            tx_env.gas_priority_fee = Some(tx.max_priority_fee_per_gas);
-            tx_env.transact_to = if let TransactionKind::Call(to_addr) = tx.to {
-                TransactTo::Call(to_addr)
-            } else {
-                TransactTo::create()
-            };
-            tx_env.value = tx.value;
-            tx_env.data = tx.data.clone();
-            tx_env.chain_id = Some(tx.chain_id);
-            tx_env.nonce = Some(tx.nonce);
-            tx_env.access_list = tx.access_list.clone().into();
-        }
-    };
 }
