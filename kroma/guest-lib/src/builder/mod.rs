@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use alloy_primitives::U256;
 use anyhow::Result;
 use guest_primitives::{
     block::Header,
     transactions::{optimism::OptimismTxEssence, TxEssence},
     trie::MptNode,
 };
-use revm::{primitives::SpecId, Database, DatabaseCommit};
+use revm::{
+    primitives::{BlobExcessGasAndPrice, BlockEnv, CfgEnv, CfgEnvWithHandlerCfg, SpecId},
+    Database, DatabaseCommit,
+};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 
@@ -73,6 +77,55 @@ where
             input,
             db_drop_destination: db_backup,
         }
+    }
+
+    pub fn evm_cfg_env(&self) -> CfgEnvWithHandlerCfg {
+        let cfg_env = CfgEnv::default().with_chain_id(self.chain_spec.chain_id());
+        let mut cfg_handler_env =
+            CfgEnvWithHandlerCfg::new_with_spec_id(cfg_env, self.spec_id.unwrap());
+        cfg_handler_env.enable_optimism();
+        cfg_handler_env
+    }
+
+    pub fn next_block_excess_blob_gas(&self) -> BlobExcessGasAndPrice {
+        self.header
+            .as_ref()
+            .unwrap()
+            .to_alloy_header()
+            .next_block_excess_blob_gas()
+            .or_else(|| {
+                self.spec_id
+                    .unwrap()
+                    .is_enabled_in(SpecId::ECOTONE)
+                    .then_some(0)
+            })
+            .map(|x| BlobExcessGasAndPrice::new(x as u64))
+            .unwrap()
+    }
+
+    pub fn block_env(&mut self) -> BlockEnv {
+        BlockEnv {
+            number: U256::from(self.input.state_input.parent_header.number + 1),
+            coinbase: self.input.state_input.beneficiary,
+            timestamp: U256::from(self.input.state_input.timestamp),
+            gas_limit: U256::from(self.input.state_input.gas_limit),
+            basefee: U256::from(self.next_block_base_fee()),
+            difficulty: U256::ZERO,
+            prevrandao: Some(self.input.state_input.mix_hash),
+            blob_excess_gas_and_price: Some(self.next_block_excess_blob_gas()),
+        }
+    }
+
+    // If the payload attribute timestamp is past canyon activation,
+    // use the canyon base fee params from the rollup config.
+    pub fn next_block_base_fee(&self) -> u128 {
+        let base_fee_params = self.chain_spec.get_base_fee_params(self.spec_id.unwrap());
+        self.header
+            .as_ref()
+            .unwrap()
+            .to_alloy_header()
+            .next_block_base_fee(base_fee_params)
+            .unwrap_or_default()
     }
 
     /// Sets the database instead of initializing it from the input.
