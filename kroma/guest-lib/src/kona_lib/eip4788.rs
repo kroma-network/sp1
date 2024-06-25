@@ -24,7 +24,7 @@ pub fn pre_block_beacon_root_contract_call<DB: Database + DatabaseCommit>(
     payload: &L2PayloadAttributes,
 ) -> Result<()>
 where
-    DB::Error: core::fmt::Display,
+    DB::Error: core::fmt::Debug,
 {
     // apply pre-block EIP-4788 contract call
     let mut evm_pre_block = Evm::builder()
@@ -55,7 +55,7 @@ fn apply_beacon_root_contract_call<EXT, DB: Database + DatabaseCommit>(
     evm: &mut Evm<'_, EXT, DB>,
 ) -> Result<()>
 where
-    DB::Error: core::fmt::Display,
+    DB::Error: core::fmt::Debug,
 {
     if !config.is_ecotone_active(timestamp) {
         return Ok(());
@@ -81,9 +81,9 @@ where
 
     let mut state = match evm.transact() {
         Ok(res) => res.state,
-        Err(e) => {
+        Err(_) => {
             evm.context.evm.env = previous_env;
-            anyhow::bail!("Failed to execute pre block call: {}", e);
+            anyhow::bail!("Failed to execute pre block call");
         }
     };
 
