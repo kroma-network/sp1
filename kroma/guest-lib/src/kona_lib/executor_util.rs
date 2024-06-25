@@ -2,8 +2,6 @@
 
 use alloc::vec::Vec;
 use alloy_primitives::{Bloom, Log};
-use alloy_rlp::{Buf, BufMut, Encodable, Header};
-use alloy_trie::{proof::ProofRetainer, HashBuilder, Nibbles};
 use op_alloy_consensus::{
     Eip658Value, OpDepositReceipt, OpDepositReceiptWithBloom, OpReceiptEnvelope, OpTxEnvelope,
     OpTxType, Receipt, ReceiptWithBloom, Transaction,
