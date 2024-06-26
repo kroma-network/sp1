@@ -109,7 +109,7 @@ where
             coinbase: self.input.state_input.beneficiary,
             timestamp: U256::from(self.input.state_input.timestamp),
             gas_limit: U256::from(self.input.state_input.gas_limit),
-            basefee: U256::from(self.next_block_base_fee()),
+            basefee: U256::from(self.header.as_ref().unwrap().base_fee_per_gas),
             difficulty: U256::ZERO,
             prevrandao: Some(self.input.state_input.mix_hash),
             blob_excess_gas_and_price: Some(self.next_block_excess_blob_gas()),
@@ -120,9 +120,9 @@ where
     // use the canyon base fee params from the rollup config.
     pub fn next_block_base_fee(&self) -> u128 {
         let base_fee_params = self.chain_spec.get_base_fee_params(self.spec_id.unwrap());
-        self.header
-            .as_ref()
-            .unwrap()
+        self.input
+            .state_input
+            .parent_header
             .to_alloy_header()
             .next_block_base_fee(base_fee_params)
             .unwrap_or_default()

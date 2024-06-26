@@ -20,7 +20,7 @@ use revm::{Database, DatabaseCommit};
 
 use crate::{
     builder::BlockBuilder,
-    consts::{Eip1559Constants, GAS_LIMIT_BOUND_DIVISOR, MAX_EXTRA_DATA_BYTES, MIN_GAS_LIMIT, ONE},
+    consts::{GAS_LIMIT_BOUND_DIVISOR, MAX_EXTRA_DATA_BYTES, MIN_GAS_LIMIT},
 };
 
 pub trait HeaderPrepStrategy {
@@ -105,10 +105,7 @@ impl HeaderPrepStrategy for EthHeaderPrepStrategy {
                 .number
                 .checked_add(1)
                 .context("Invalid block number: too large")?,
-            base_fee_per_gas: derive_base_fee(
-                &block_builder.input.state_input.parent_header,
-                block_builder.chain_spec.gas_constants(spec_id).unwrap(),
-            ),
+            base_fee_per_gas: U256::from(block_builder.next_block_base_fee()),
             // Initialize metadata from input
             beneficiary: block_builder.input.state_input.beneficiary,
             gas_limit: block_builder.input.state_input.gas_limit,
@@ -125,39 +122,5 @@ impl HeaderPrepStrategy for EthHeaderPrepStrategy {
             ..Default::default()
         });
         Ok(block_builder)
-    }
-}
-
-/// Base fee for next block. [EIP-1559](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1559.md) spec
-fn derive_base_fee(parent: &Header, eip_1559_constants: &Eip1559Constants) -> U256 {
-    let parent_gas_target = parent.gas_limit / eip_1559_constants.elasticity_multiplier;
-
-    match parent.gas_used.cmp(&parent_gas_target) {
-        std::cmp::Ordering::Equal => parent.base_fee_per_gas,
-
-        std::cmp::Ordering::Greater => {
-            let gas_used_delta = parent.gas_used - parent_gas_target;
-            let base_fee_delta = ONE
-                .max(
-                    parent.base_fee_per_gas * gas_used_delta
-                        / parent_gas_target
-                        / eip_1559_constants.base_fee_change_denominator,
-                )
-                .min(
-                    parent.base_fee_per_gas / eip_1559_constants.base_fee_max_increase_denominator,
-                );
-            parent.base_fee_per_gas + base_fee_delta
-        }
-
-        std::cmp::Ordering::Less => {
-            let gas_used_delta = parent_gas_target - parent.gas_used;
-            let base_fee_delta = (parent.base_fee_per_gas * gas_used_delta
-                / parent_gas_target
-                / eip_1559_constants.base_fee_change_denominator)
-                .min(
-                    parent.base_fee_per_gas / eip_1559_constants.base_fee_max_decrease_denominator,
-                );
-            parent.base_fee_per_gas - base_fee_delta
-        }
     }
 }
