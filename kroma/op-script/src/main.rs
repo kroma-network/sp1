@@ -15,7 +15,6 @@ use clap::{ArgEnum, Parser};
 use guest_lib::{
     builder::{BlockBuilderStrategy, OptimismStrategy},
     consts::OP_MAINNET_CHAIN_SPEC,
-    output::BlockBuildOutput,
 };
 use input_builder::new_block_build_input;
 use serde::{Deserialize, Serialize};
@@ -26,7 +25,6 @@ use std::path::PathBuf;
 #[clap(rename_all = "kebab-case")]
 enum Mode {
     Prove,
-    ProveWithCheck,
 }
 
 #[derive(Parser, Debug)]
@@ -34,19 +32,11 @@ enum Mode {
 struct Args {
     #[clap(default_value_t = Mode::Prove, short, long, arg_enum)]
     mode: Mode,
-    // TODO(ethan): remove api key before open this repository.
-    #[clap(
-        default_value = "https://optimism-mainnet.infura.io/v3/fb52cee77a784fabb0eb17edc9c5e817",
-        short,
-        long
-    )]
+    #[clap(short, long)]
     rpc_url: String,
     #[clap(default_value = "./cache", short, long)]
     cache_path: String,
-    // TODO(ethan): remove default value before open this repository.
-    // NOTE(ethan): the last block before Ecotone fork: 117387811 (0x6ff3223 in hex )
-    // NOTE(ethan): ecotone block w/ single tx: 121282256 (0x73a9ed0 in hex)
-    #[clap(default_value_t = 121282256, short, long)]
+    #[clap(short, long)]
     block_num: u64,
 }
 
@@ -70,8 +60,8 @@ async fn main() -> Result<()> {
     sp1_sdk::utils::setup_logger();
 
     // Setup the prover client and the guest program.
-    // let client = ProverClient::new();
-    // let (pk, vk) = client.setup(ZETH_ELF);
+    let client = ProverClient::new();
+    let (pk, vk) = client.setup(ZETH_ELF);
 
     let op_block_input = new_block_build_input(
         &OP_MAINNET_CHAIN_SPEC,
@@ -84,76 +74,56 @@ async fn main() -> Result<()> {
     let mut stdin = SP1Stdin::new();
     stdin.write(&op_block_input);
 
-    let output = OptimismStrategy::build_from(&OP_MAINNET_CHAIN_SPEC, op_block_input.clone())
+    let _ = OptimismStrategy::build_from(&OP_MAINNET_CHAIN_SPEC, op_block_input.clone())
         .context("Error while building block")
         .unwrap();
 
-    match output {
-        BlockBuildOutput::SUCCESS {
-            hash,
-            head,
-            state,
-            state_input_hash,
-        } => {
-            println!("Block hash: {}", hash);
-            println!("Block head: {:?}", head);
-            // println!("State root: {}", head.state_root);
-            // println!("State input hash: {}", state_input_hash);
-        }
-        BlockBuildOutput::FAILURE { state_input_hash } => {
-            println!(
-                "Block build failed with state input hash: {}",
-                state_input_hash
-            );
-        }
-    }
+    // Generate the proof.
+    let proof = client
+        .prove_plonk(&pk, stdin)
+        .expect("failed to generate proof");
 
-    // // Generate the proof.
-    // let proof = client
-    //     .prove_plonk(&pk, stdin)
-    //     .expect("failed to generate proof");
+    // Create the testing fixture so we can test things end-to-end.
+    let fixture = SP1ZethProofFixture {
+        vkey: vk.bytes32().to_string(),
+        public_values: proof.public_values.bytes().to_string(),
+        proof: proof.bytes().to_string(),
+    };
 
-    // // Create the testing fixture so we can test things end-to-end.
-    // let fixture = SP1ZethProofFixture {
-    //     vkey: vk.bytes32().to_string(),
-    //     public_values: proof.public_values.bytes().to_string(),
-    //     proof: proof.bytes().to_string(),
-    // };
+    // The verification key is used to verify that the proof corresponds to the execution of the
+    // program on the given input.
+    //
+    // Note that the verification key stays the same regardless of the input.
+    println!("Verification Key: {}", fixture.vkey);
 
-    // // The verification key is used to verify that the proof corresponds to the execution of the
-    // // program on the given input.
-    // //
-    // // Note that the verification key stays the same regardless of the input.
-    // println!("Verification Key: {}", fixture.vkey);
+    // The public values are the values which are publicly committed to by the zkVM.
+    //
+    // If you need to expose the inputs or outputs of your program, you should commit them in
+    // the public values.
+    println!("Public Values: {}", fixture.public_values);
 
-    // // The public values are the values which are publicly committed to by the zkVM.
-    // //
-    // // If you need to expose the inputs or outputs of your program, you should commit them in
-    // // the public values.
-    // println!("Public Values: {}", fixture.public_values);
+    // The proof proves to the verifier that the program was executed with some inputs that led to
+    // the give public values.
+    println!("Proof Bytes: {}", fixture.proof);
 
-    // // The proof proves to the verifier that the program was executed with some inputs that led to
-    // // the give public values.
-    // println!("Proof Bytes: {}", fixture.proof);
+    // Save the fixture to a file.
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../contracts/src/fixtures");
+    std::fs::create_dir_all(&fixture_path).expect("failed to create fixture path");
+    std::fs::write(
+        fixture_path.join("fixture.json"),
+        serde_json::to_string_pretty(&fixture).unwrap(),
+    )
+    .expect("failed to write fixture");
 
-    // // Save the fixture to a file.
-    // let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../contracts/src/fixtures");
-    // std::fs::create_dir_all(&fixture_path).expect("failed to create fixture path");
-    // std::fs::write(
-    //     fixture_path.join("fixture.json"),
-    //     serde_json::to_string_pretty(&fixture).unwrap(),
-    // )
-    // .expect("failed to write fixture");
+    // Verify proof.
+    client
+        .verify_plonk(&proof, &vk)
+        .expect("verification failed");
 
-    // // Verify proof.
-    // client
-    //     .verify_plonk(&proof, &vk)
-    //     .expect("verification failed");
-
-    // // Save proof.
-    // proof
-    //     .save("proof-with-io.json")
-    //     .expect("saving proof failed");
+    // Save proof.
+    proof
+        .save("proof-with-io.json")
+        .expect("saving proof failed");
 
     Ok(())
 }
