@@ -30,3 +30,7 @@ sp1-helper = { path = "../../helper" }
 [features]
 default = ["plonk"]
 plonk = ["sp1-sdk/plonk"]
+
+[dev-dependencies]
+ctor = "0.2.8"
+lazy_static = "1.4.0"

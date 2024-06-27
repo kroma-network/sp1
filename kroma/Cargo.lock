@@ -1215,6 +1215,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctor"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edb49164822f3ee45b17acd4a208cfc1251410cf0cad9a833234c9890774dd9f"
+dependencies = [
+ "quote",
+ "syn 2.0.66",
+]
+
+[[package]]
 name = "ctr"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3134,12 +3144,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap 3.2.25",
+ "ctor",
  "ethers-core",
  "ethers-providers",
  "flate2",
  "guest-lib",
  "guest-primitives",
  "hashbrown 0.14.5",
+ "lazy_static",
  "log",
  "once_cell",
  "revm",
