@@ -127,3 +127,129 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use guest_primitives::{b256, B256};
+    use lazy_static::lazy_static;
+    use std::collections::HashMap;
+
+    const CACHE_PATH: &str = "./cache";
+
+    #[derive(Debug)]
+    struct HeaderSummaryForTest {
+        hash: B256,
+        state_root: B256,
+    }
+
+    lazy_static! {
+        static ref HEIGHT_TO_SUMMARY: HashMap<u64, HeaderSummaryForTest> = {
+            let mut m = HashMap::new();
+            m.insert(
+                121282256,
+                HeaderSummaryForTest {
+                    hash: b256!("94963bbe8a0290ef7b777924d109ab4874324386aa9eaf7932e705a3d9084f62"),
+                    state_root: b256!(
+                        "5f0ee9d9beab9ea2c2cd0a377fc71c69b4290139b95d44bb47e4da5fb330ace9"
+                    ),
+                },
+            );
+            m.insert(
+                120794432,
+                HeaderSummaryForTest {
+                    hash: b256!("c037066dfa979f84bda99016623d1bd4d2168e7a54dfe95b0948b56eda50a2bb"),
+                    state_root: b256!(
+                        "a1e9207c3c68cd4854074f08226a3643debed27e45bf1b22ab528f8de16245ed"
+                    ),
+                },
+            );
+
+            m.insert(
+                121049889,
+                HeaderSummaryForTest {
+                    hash: b256!("fc88d920d2c1f04d31b9e4ad6043eca80cf975c25f66b6d2d818b6602be41e0d"),
+                    state_root: b256!(
+                        "ac6f1a9722101300ba71fb58517eadbb4964dc4f4891f8f3e58a292e7c3204f3"
+                    ),
+                },
+            );
+
+            m.insert(
+                121003241,
+                HeaderSummaryForTest {
+                    hash: b256!("d46b61251a4f2b28af3cc4b1b76401381ea7bfd32033b3ec78c9c5068321e49e"),
+                    state_root: b256!(
+                        "49dfddc9ce6d832c6ab981aea324c3d57b1b1d93823656b43d02608e6b59f3bd"
+                    ),
+                },
+            );
+
+            m.insert(
+                121057303,
+                HeaderSummaryForTest {
+                    hash: b256!("a564e4024ffc946e3d8bcda13195d95603d2300df749e0efdf6628859af008ea"),
+                    state_root: b256!(
+                        "c8286187544a27fdd14372a0182b366be0c0f0f4c4a0a2ef31ee4538972266f5"
+                    ),
+                },
+            );
+
+            m.insert(
+                121065789,
+                HeaderSummaryForTest {
+                    hash: b256!("38f58786d61fff87845b0e1eda4af07d48063891b17309cd43e2d3535993acfa"),
+                    state_root: b256!(
+                        "1477b41c16571887dd0cfacd4972f67d98079cbaa4bf98244eacde4aef8d1ab7"
+                    ),
+                },
+            );
+
+            m.insert(
+                121135704,
+                HeaderSummaryForTest {
+                    hash: b256!("6165092c2697f45decd5c00631c427f0b165d54263eb449b4e8009ba1d6a4fb7"),
+                    state_root: b256!(
+                        "c8201bf473cbf8adfaf240910aea025ea33573af383777a31407a4a4cf3cbfc7"
+                    ),
+                },
+            );
+            m
+        };
+    }
+
+    async fn build_output_from_cache(block_no: u64) -> BlockBuildOutput {
+        OptimismStrategy::build_from(
+            &OP_MAINNET_CHAIN_SPEC,
+            new_block_build_input(
+                &OP_MAINNET_CHAIN_SPEC,
+                None,
+                Some(String::from(CACHE_PATH)),
+                block_no,
+            )
+            .await,
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_op_ecotone_blocks() {
+        for height in HEIGHT_TO_SUMMARY.keys() {
+            let output = build_output_from_cache(*height).await;
+            match output {
+                BlockBuildOutput::SUCCESS {
+                    hash,
+                    head,
+                    state: _,
+                    state_input_hash: _,
+                } => {
+                    assert_eq!(hash, HEIGHT_TO_SUMMARY.get(height).unwrap().hash);
+                    assert_eq!(
+                        head.state_root,
+                        HEIGHT_TO_SUMMARY.get(height).unwrap().state_root
+                    );
+                }
+                _ => panic!("Block verification failed"),
+            }
+        }
+    }
+}
