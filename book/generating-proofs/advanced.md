@@ -13,7 +13,7 @@ If execution of your program succeeds, then proof generation should succeed as w
 
 ## Compressed Proofs
 
-With the `ProverClient`, the default `prove` function generates a proof that is succinct, but can have size that scales with the number of cycles of the program. To generate a compressed proof of constant size, you can use the `prove_compressed` function instead. This will use STARK recursion to generate a proof that is constant size (around 7Kb), but will be slower than just calling `prove`, as it will use recursion to combine the core SP1 proof into a single constant-sized proof.
+With the `ProverClient`, the default `prove` function generates a proof that is succinct, but can have size that scales with the number of cycles of the program. To generate a compressed proof of constant size, you can use the `prove_compressed` function instead. This will use STARK recursion to generate a proof that is constant in size (around 7Kb), but will be slower than just calling `prove`, as it will use recursion to combine the core SP1 proof into a single constant-sized proof.
 
 ```rust,noplayground
 {{#include ../../examples/fibonacci/script/bin/compressed.rs}}
