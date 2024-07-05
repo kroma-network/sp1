@@ -1,0 +1,22 @@
+[package]
+name = "guest-primitives"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ethers-core = { version = "2.0", features = ["optimism"] }
+alloy-primitives = { workspace = true, features = ["rlp", "serde"] }
+alloy-rlp = { workspace = true, features = ["derive"] }
+alloy-rlp-derive = { version = "0.3", default-features = false }
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+bytes = { version = "1.1", default-features = false }
+sha3 = "0.10"
+k256 = { version = "=0.13.3", features = [
+    "std",
+    "ecdsa",
+], default_features = false }
+rlp = "0.5.2"
+thiserror = "1.0"
+revm-primitives = { version = "4.0", default_features = false }
+alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "cb95183", default-features = false }

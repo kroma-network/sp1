@@ -1,0 +1,38 @@
+[package]
+name = "guest-lib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+guest-primitives = { path = "../guest-primitives" }
+serde = "1.0"
+revm = { workspace = true, features = ["optimism", "serde"] }
+hashbrown = { version = "0.14.3", features = ["inline-more"] }
+anyhow = "1.0"
+alloy-rlp = { workspace = true, features = ["derive"] }
+alloy-rlp-derive = { version = "0.3", default-features = false }
+thiserror = "1.0"
+once_cell = "1.18"
+ruint = { version = "1.10", default-features = false }
+log = "0.4"
+ethers-core = { version = "2.0", features = ["optimism"] }
+chrono = { version = "0.4", default-features = false }
+flate2 = "1.0.26"
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+bytemuck = { version = "1.13", features = ["extern_crate_alloc"] }
+
+op-alloy-consensus = { git = "https://github.com/alloy-rs/op-alloy", branch = "refcell/re-exports", default-features = false }
+alloy-primitives = { version = "0.7.6", default-features = false }
+tracing = { version = "0.1.40", default-features = false }
+alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "cb95183", default-features = false }
+superchain-primitives = { git = "https://github.com/ethereum-optimism/superchain-registry", branch = "main", default-features = false }
+alloy-eips = { git = "https://github.com/alloy-rs/alloy", rev = "cb95183", default-features = false }
+alloy-trie = { version = "0.4.1", default-features = false }
+
+[features]
+default = ["k256"]
+k256 = [
+    "alloy-primitives/k256",
+    "alloy-consensus/k256",
+    "op-alloy-consensus/k256",
+]
