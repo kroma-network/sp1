@@ -25,7 +25,7 @@ op-alloy-consensus = { git = "https://github.com/alloy-rs/op-alloy", branch = "r
 alloy-primitives = { version = "0.7.6", default-features = false }
 tracing = { version = "0.1.40", default-features = false }
 alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "cb95183", default-features = false }
-superchain-primitives = { git = "https://github.com/ethereum-optimism/superchain-registry", branch = "main", default-features = false }
+superchain-primitives = { git = "https://github.com/ethereum-optimism/superchain-registry", rev = "3fb9d9b", default-features = false }
 alloy-eips = { git = "https://github.com/alloy-rs/alloy", rev = "cb95183", default-features = false }
 alloy-trie = { version = "0.4.1", default-features = false }
 
