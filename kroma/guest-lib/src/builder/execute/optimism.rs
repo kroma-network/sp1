@@ -27,7 +27,6 @@ use crate::{
 use alloy_primitives::U256;
 use anyhow::{anyhow, Result};
 use guest_primitives::{transactions::optimism::OptimismTxEssence, trie::EMPTY_ROOT};
-#[cfg(not(target_os = "zkvm"))]
 use op_alloy_consensus::{Decodable2718, OpReceiptEnvelope, OpTxEnvelope};
 use revm::{primitives::EnvWithHandlerCfg, Database, DatabaseCommit, Evm};
 

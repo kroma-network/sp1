@@ -130,6 +130,7 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use guest_lib::output::BlockBuildOutput;
     use guest_primitives::{b256, B256};
     use lazy_static::lazy_static;
     use std::collections::HashMap;
