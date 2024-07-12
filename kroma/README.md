@@ -13,7 +13,7 @@ that can generate a proof of any RISC-V program and verify the proof onchain.
 ## Generate Proof
 
 ```
-RUST_LOG=info cargo run --package zeth-script --bin prove --release
+RUST_LOG=info cargo run --package op-script --release -- --rpc-url <RPC_URL> --block-num <BLOCK_NUM>
 ```
 
 ## Export Solidity Verifier

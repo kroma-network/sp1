@@ -1,3 +1,6 @@
+use core::panic;
+use std::fs::File;
+
 use anyhow::Result;
 use sp1_prover::{SP1Prover, SP1Stdin};
 

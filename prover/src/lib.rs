@@ -429,6 +429,7 @@ impl SP1Prover {
                 .collect::<Vec<_>>();
             reduce_proofs.extend(proofs);
         }
+        panic!("FIRST LAYER PROOFS GENERATED");
 
         // Run the deferred proofs programs.
         for inputs in deferred_inputs.chunks(shard_batch_size) {

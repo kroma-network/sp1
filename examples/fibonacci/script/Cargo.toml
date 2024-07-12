@@ -12,6 +12,10 @@ sha2 = "0.10.8"
 [build-dependencies]
 sp1-helper = { path = "../../../helper" }
 
+[features]
+default = ["plonk"]
+plonk = ["sp1-sdk/plonk"]
+
 [[bin]]
 name = "plonk_bn254"
 path = "bin/plonk_bn254.rs"
