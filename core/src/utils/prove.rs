@@ -155,38 +155,73 @@ where
     // Execute the program, saving checkpoints at the start of every `shard_batch_size` cycle range.
     // let mut checkpoints = Vec::new();
     // let mut checkpoint_index = 0;
-    let (public_values_stream, public_values) = loop {
-        // Execute the runtime until we reach a checkpoint.
-        let (checkpoint, done) = tracing::info_span!("collect_checkpoints")
-            .in_scope(|| runtime.execute_state())
-            .map_err(SP1CoreProverError::ExecutionError)?;
+    // let (public_values_stream, public_values) = loop {
+    //     // Execute the runtime until we reach a checkpoint.
+    //     let (checkpoint, done) = tracing::info_span!("collect_checkpoints")
+    //         .in_scope(|| runtime.execute_state())
+    //         .map_err(SP1CoreProverError::ExecutionError)?;
 
-        // Save the checkpoint to a file.
-        // let file_path = format!("checkpoint-{}-cmp", checkpoint_index);
-        // bincode::serialize_into(File::create(file_path.clone()).expect("failed to open file"), &checkpoint)
-        //     .map_err(SP1CoreProverError::SerializationError)?;
-        // checkpoints.push(file_path);
+    //     // Save the checkpoint to disk.
+    //     let file_path = format!("checkpoint-{}", checkpoint_index);
+    //     bincode::serialize_into(
+    //         File::create(file_path.clone()).expect("failed to open file"),
+    //         &checkpoint,
+    //     )
+    //     .map_err(SP1CoreProverError::SerializationError)?;
 
-        // If we've reached the final checkpoint, break out of the loop.
-        if done {
-            break (
-                std::mem::take(&mut runtime.state.public_values_stream),
-                runtime.record.public_values,
-            );
-        }
-        // checkpoint_index += 1;
-    };
+    //     // If we've reached the final checkpoint, break out of the loop.
+    //     if done {
+    //         break (
+    //             std::mem::take(&mut runtime.state.public_values_stream),
+    //             runtime.record.public_values,
+    //         );
+    //     }
+    //     checkpoint_index += 1;
+    // };
+    // Load public values stream from disk.
+    let public_values_stream =
+        bincode::deserialize_from(File::open("public-values-stream").expect("failed to open file"))
+            .unwrap();
+
+    // Load public values from disk.
+    let public_values =
+        bincode::deserialize_from(File::open("public-values").expect("failed to open file"))
+            .unwrap();
+
+    // Save public values stream to disk.
+    // bincode::serialize_into(
+    //     File::create("public-values-stream").expect("failed to open file"),
+    //     &public_values_stream,
+    // )
+    // .unwrap();
+
+    // Save public values to disk.
+    // bincode::serialize_into(
+    //     File::create("public-values").expect("failed to open file"),
+    //     &public_values,
+    // )
+    // .unwrap();
+    // panic!("checkpointing done");
 
     // For each checkpoint, generate events, shard them, commit shards, and observe in challenger.
     let sharding_config = ShardingConfig::default();
     let mut shard_main_datas = Vec::new();
     let mut challenger = machine.config().challenger();
+    let mut checkpoints_to_commit = vec![
+        String::from("checkpoint-0"),
+        String::from("checkpoint-1"),
+        String::from("checkpoint-2"),
+        String::from("checkpoint-3"),
+        String::from("checkpoint-4"),
+    ];
     vk.observe_into(&mut challenger);
-    for (num, checkpoint_file) in checkpoints.iter_mut().enumerate() {
+    for (num, checkpoint_file_path) in checkpoints_to_commit.iter_mut().enumerate() {
+        let mut checkpoint_file =
+            File::open(checkpoint_file_path).map_err(SP1CoreProverError::IoError)?;
         let (mut record, _) = tracing::info_span!("commit_checkpoint", num)
-            .in_scope(|| trace_checkpoint(program.clone(), checkpoint_file, opts));
+            .in_scope(|| trace_checkpoint(program.clone(), &checkpoint_file, opts));
         record.public_values = public_values;
-        reset_seek(&mut *checkpoint_file);
+        reset_seek(&mut checkpoint_file);
 
         // Shard the record into shards.
         let checkpoint_shards =
@@ -201,15 +236,16 @@ where
         for (commitment, shard) in commitments.into_iter().zip(checkpoint_shards.iter()) {
             challenger.observe(commitment);
             challenger.observe_slice(&shard.public_values::<SC::Val>()[0..machine.num_pv_elts()]);
-    // // Load multi-machine shard proofs
+        }
+    }
+    // Load multi-machine shard proofs
     // let mut shard_proofs: Vec<ShardProof<SC>> = Vec::new();
     // for shard_index in 1..79 {
-    //     let shard_proof_file_path = format!(
-    //         "shard-{}-multi-machine-proof",
-    //         shard_index
-    //     );
-    //     let mut shard_proof_file = File::open(shard_proof_file_path).map_err(SP1CoreProverError::IoError)?;
-    //     let mut shard_proof = bincode::deserialize_from(&mut shard_proof_file).map_err(SP1CoreProverError::SerializationError)?;
+    //     let shard_proof_file_path = format!("op-shard-{}-multi-machine-proof", shard_index);
+    //     let mut shard_proof_file =
+    //         File::open(shard_proof_file_path).map_err(SP1CoreProverError::IoError)?;
+    //     let shard_proof = bincode::deserialize_from(&mut shard_proof_file)
+    //         .map_err(SP1CoreProverError::SerializationError)?;
     //     shard_proofs.push(shard_proof);
     // }
     // tracing::info!("SHARD PROOFS LOADED");
@@ -218,37 +254,17 @@ where
 
     // Ok((proof, public_values_stream))
 
-    // Load single-machine shard proofs
-    let mut shard_proofs: Vec<ShardProof<SC>> = Vec::new();
-    for checkpoint_index in 0..5 {
-        if checkpoint_index < 4 {
-            for shard_index in 0..16 {
-                let shard_proof_file_path = format!(
-                    "checkpoint-{}-shard-{}-single-machine-proof",
-                    checkpoint_index, shard_index
-                );
-                let mut shard_proof_file = File::open(shard_proof_file_path).map_err(SP1CoreProverError::IoError)?;
-                let mut shard_proof = bincode::deserialize_from(&mut shard_proof_file).map_err(SP1CoreProverError::SerializationError)?;
-                shard_proofs.push(shard_proof);
-            }
-        } else {
-            for shard_index in 0..14 {
-                let shard_proof_file_path = format!(
-                    "checkpoint-{}-shard-{}-single-machine-proof",
-                    checkpoint_index, shard_index
-                );
-                let mut shard_proof_file = File::open(shard_proof_file_path).map_err(SP1CoreProverError::IoError)?;
-                let mut shard_proof = bincode::deserialize_from(&mut shard_proof_file).map_err(SP1CoreProverError::SerializationError)?;
-                shard_proofs.push(shard_proof);
-            }
-        }
-    }
-    tracing::info!("SINGLE MACHINE SHARD PROOFS LOADED");
-
     // For each checkpoint, generate events and shard again, then prove the shards.
     let mut shard_proofs = Vec::<ShardProof<SC>>::new();
     let mut report_aggregate = ExecutionReport::default();
-    for (num, mut checkpoint_file) in checkpoints.into_iter().enumerate() {
+    let mut checkpoints_to_prove = vec![
+        String::from("checkpoint-0-cmp"),
+        String::from("checkpoint-1-cmp"),
+        String::from("checkpoint-2-cmp"),
+    ];
+    for (num, mut checkpoint_file_path) in checkpoints_to_prove.into_iter().enumerate() {
+        let mut checkpoint_file =
+            File::open(checkpoint_file_path).map_err(SP1CoreProverError::IoError)?;
         let checkpoint_shards = {
             let (mut events, report) = tracing::info_span!("prove_checkpoint", num)
                 .in_scope(|| trace_checkpoint(program.clone(), &checkpoint_file, opts));
@@ -269,13 +285,22 @@ where
                     .shard_chips_ordered(&chip_ordering)
                     .collect::<Vec<_>>()
                     .to_vec();
-                LocalProver::prove_shard(
+                let shard_proof = LocalProver::prove_shard(
                     config,
                     &pk,
                     &ordered_chips,
                     shard_data,
                     &mut challenger.clone(),
+                );
+                let shard_proof_file_path =
+                    format!("fixed-shard-{}-multi-machine-proof", shard.index());
+                bincode::serialize_into(
+                    File::create(shard_proof_file_path).expect("failed to open file"),
+                    &shard_proof,
                 )
+                .map_err(SP1CoreProverError::SerializationError)
+                .unwrap();
+                shard_proof
             })
             .collect::<Vec<_>>();
         shard_proofs.append(&mut checkpoint_proofs);
@@ -308,7 +333,6 @@ where
         (runtime.state.global_clk as f64 / proving_time as f64),
         bincode::serialize(&proof).unwrap().len(),
     );
-    let proof = MachineProof { shard_proofs };
 
     Ok((proof, public_values_stream))
 
