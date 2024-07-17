@@ -34,7 +34,7 @@ sp1_zkvm::io::commit::<u64>(&b);
 sp1_zkvm::io::commit::<String>(&c);
 ```
 
-Note that `T` must implement the `Serialize` and `Deserialize` trait. If you want to write bytes directly, you can also use `sp1_zkvm::io::write_slice` method:
+Note that `T` must implement the `Serialize` and `Deserialize` traits. If you want to write bytes directly, you can also use `sp1_zkvm::io::write_slice` method:
 
 ```rust,noplayground
 let mut my_slice = [0_u8; 32];
