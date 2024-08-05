@@ -16,7 +16,10 @@ serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 alloy-sol-types = "0.7.2"
 
+sysinfo = "0.30.13"
+anyhow = "1.0.83"
 sp1-prover = { workspace = true }
+sp1-core ={ workspace = true }
 
 [build-dependencies]
 sp1-helper = { workspace = true }

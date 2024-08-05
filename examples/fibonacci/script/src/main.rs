@@ -7,13 +7,17 @@
 //! ```
 
 pub mod common;
+pub mod operator;
+pub mod worker;
 
 use std::path::PathBuf;
 
 use alloy_sol_types::{sol, SolType};
 use clap::Parser;
+use operator::prove_operator_phase1;
 use serde::{Deserialize, Serialize};
-use sp1_sdk::{HashableKey, SP1ProofWithPublicValues, SP1VerifyingKey};
+use sp1_core::SP1_CIRCUIT_VERSION;
+use sp1_sdk::{HashableKey, SP1Proof, SP1ProofWithPublicValues, SP1VerifyingKey};
 
 /// The arguments for the prove command.
 #[derive(Parser, Debug, Clone)]
@@ -38,31 +42,37 @@ fn main() {
     let args = ProveArgs::parse();
 
     // Setup the prover client.
-    let (client, stdin, pk, vk) = common::init_client(args.clone());
-    println!("n: {}", args.n);
+    let proof_meta = prove_operator_phase1(args.clone()).unwrap();
 
-    if args.evm {
-        // Generate the proof.
-        let proof = client
-            .prove(&pk, stdin)
-            .plonk()
-            .run()
-            .expect("failed to generate proof");
-        create_plonk_fixture(&proof, &vk);
-    } else {
-        // Generate the proof.
-        let proof = client
-            .prove(&pk, stdin)
-            .run()
-            .expect("failed to generate proof");
-        let (_, _, fib_n) =
-            PublicValuesTuple::abi_decode(proof.public_values.as_slice(), false).unwrap();
-        println!("Successfully generated proof!");
-        println!("fib(n): {}", fib_n);
+    let _proof = SP1ProofWithPublicValues {
+        proof: SP1Proof::Core(proof_meta.proof.0),
+        stdin: proof_meta.stdin,
+        public_values: proof_meta.public_values,
+        sp1_version: SP1_CIRCUIT_VERSION.to_string(),
+    };
 
-        // Verify the proof.
-        client.verify(&proof, &vk).expect("failed to verify proof");
-    }
+    // if args.evm {
+    //     // Generate the proof.
+    //     let proof = client
+    //         .prove(&pk, stdin)
+    //         .plonk()
+    //         .run()
+    //         .expect("failed to generate proof");
+    //     create_plonk_fixture(&proof, &vk);
+    // } else {
+    //     // Generate the proof.
+    //     let proof = client
+    //         .prove(&pk, stdin)
+    //         .run()
+    //         .expect("failed to generate proof");
+    //     let (_, _, fib_n) =
+    //         PublicValuesTuple::abi_decode(proof.public_values.as_slice(), false).unwrap();
+    //     println!("Successfully generated proof!");
+    //     println!("fib(n): {}", fib_n);
+
+    //     // Verify the proof.
+    //     client.verify(&proof, &vk).expect("failed to verify proof");
+    // }
 }
 
 /// A fixture that can be used to test the verification of SP1 zkVM proofs inside Solidity.

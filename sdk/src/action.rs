@@ -80,13 +80,13 @@ impl<'a> Execute<'a> {
 /// Builder to prepare and configure proving execution of a program on an input.
 /// May be run with [Self::run].
 pub struct Prove<'a> {
-    prover: &'a dyn Prover<DefaultProverComponents>,
-    kind: SP1ProofKind,
-    context_builder: SP1ContextBuilder<'a>,
-    pk: &'a SP1ProvingKey,
-    stdin: SP1Stdin,
-    core_opts: SP1CoreOpts,
-    recursion_opts: SP1CoreOpts,
+    pub prover: &'a dyn Prover<DefaultProverComponents>,
+    pub kind: SP1ProofKind,
+    pub context_builder: SP1ContextBuilder<'a>,
+    pub pk: &'a SP1ProvingKey,
+    pub stdin: SP1Stdin,
+    pub core_opts: SP1CoreOpts,
+    pub recursion_opts: SP1CoreOpts,
 }
 
 impl<'a> Prove<'a> {
