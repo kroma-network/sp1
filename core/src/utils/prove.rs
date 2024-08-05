@@ -16,7 +16,7 @@ pub use baby_bear_blake3::BabyBearBlake3;
 use p3_baby_bear::BabyBear;
 use p3_field::PrimeField32;
 
-use crate::air::MachineAir;
+use crate::air::{MachineAir, PublicValues};
 use crate::io::{SP1PublicValues, SP1Stdin};
 use crate::lookup::InteractionBuilder;
 use crate::runtime::{ExecutionError, NoOpSubproofVerifier, SP1Context};
@@ -119,6 +119,58 @@ where
     prove_with_context::<SC, _>(&prover, program, stdin, opts, Default::default())
 }
 
+// pub fn prove_with_context<SC: StarkGenericConfig, P: MachineProver<SC, RiscvAir<SC::Val>>>(
+//     prover: &P,
+//     program: Program,
+//     stdin: &SP1Stdin,
+//     opts: SP1CoreOpts,
+//     context: SP1Context,
+// ) -> Result<(MachineProof<SC>, Vec<u8>, u64), SP1CoreProverError>
+// where
+//     SC::Val: PrimeField32,
+//     SC::Challenger: 'static + Clone + Send,
+//     OpeningProof<SC>: Send,
+//     Com<SC>: Send + Sync,
+//     PcsProverData<SC>: Send + Sync,
+// {
+// }
+
+pub fn generate_checkpoints(
+    runtime: &mut Runtime,
+) -> Result<(Vec<u8>, PublicValues<u32, u32>, Vec<File>), SP1CoreProverError> {
+    // Execute the program, saving checkpoints at the start of every `shard_batch_size` cycle range.
+    let create_checkpoints_span = tracing::debug_span!("create checkpoints").entered();
+    let mut checkpoints = Vec::new();
+    let (public_values_stream, public_values) = loop {
+        // Execute the runtime until we reach a checkpoint.
+        let (checkpoint, done) = runtime
+            .execute_state()
+            .map_err(SP1CoreProverError::ExecutionError)?;
+
+        // Save the checkpoint to a temp file.
+        let mut checkpoint_file = tempfile::tempfile().map_err(SP1CoreProverError::IoError)?;
+        checkpoint
+            .save(&mut checkpoint_file)
+            .map_err(SP1CoreProverError::IoError)?;
+        checkpoints.push(checkpoint_file);
+
+        // If we've reached the final checkpoint, break out of the loop.
+        if done {
+            break (
+                runtime.state.public_values_stream.clone(),
+                runtime
+                    .records
+                    .last()
+                    .expect("at least one record")
+                    .public_values,
+            );
+        }
+    };
+    create_checkpoints_span.exit();
+
+    Ok((public_values_stream, public_values, checkpoints))
+}
+
 pub fn prove_with_context<SC: StarkGenericConfig, P: MachineProver<SC, RiscvAir<SC::Val>>>(
     prover: &P,
     program: Program,
@@ -146,35 +198,8 @@ where
     // Setup the machine.
     let (pk, vk) = prover.setup(runtime.program.as_ref());
 
-    // Execute the program, saving checkpoints at the start of every `shard_batch_size` cycle range.
-    let create_checkpoints_span = tracing::debug_span!("create checkpoints").entered();
-    let mut checkpoints = Vec::new();
-    let (public_values_stream, public_values) = loop {
-        // Execute the runtime until we reach a checkpoint.
-        let (checkpoint, done) = runtime
-            .execute_state()
-            .map_err(SP1CoreProverError::ExecutionError)?;
-
-        // Save the checkpoint to a temp file.
-        let mut checkpoint_file = tempfile::tempfile().map_err(SP1CoreProverError::IoError)?;
-        checkpoint
-            .save(&mut checkpoint_file)
-            .map_err(SP1CoreProverError::IoError)?;
-        checkpoints.push(checkpoint_file);
-
-        // If we've reached the final checkpoint, break out of the loop.
-        if done {
-            break (
-                runtime.state.public_values_stream,
-                runtime
-                    .records
-                    .last()
-                    .expect("at least one record")
-                    .public_values,
-            );
-        }
-    };
-    create_checkpoints_span.exit();
+    let (public_values_stream, public_values, mut checkpoints) =
+        generate_checkpoints(&mut runtime)?;
 
     // Commit to the shards.
     #[cfg(debug_assertions)]
