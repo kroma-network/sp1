@@ -6,13 +6,11 @@
 //! RUST_LOG=info cargo run --package fibonacci-script --bin prove --release
 //! ```
 
-use std::path::PathBuf;
-
 use alloy_sol_types::{sol, SolType};
 use clap::Parser;
-use hex;
 use serde::{Deserialize, Serialize};
 use sp1_sdk::{HashableKey, ProverClient, SP1ProofWithPublicValues, SP1Stdin, SP1VerifyingKey};
+use std::path::PathBuf;
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
 ///
