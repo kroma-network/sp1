@@ -1743,6 +1743,7 @@ dependencies = [
  "sp1-prover",
  "sp1-sdk",
  "sysinfo",
+ "tempfile",
  "tracing",
 ]
 

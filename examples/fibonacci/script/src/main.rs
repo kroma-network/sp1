@@ -14,7 +14,7 @@ use std::path::PathBuf;
 
 use alloy_sol_types::{sol, SolType};
 use clap::Parser;
-use operator::prove_operator_phase1;
+use operator::operator_phase1_begin;
 use serde::{Deserialize, Serialize};
 use sp1_core::SP1_CIRCUIT_VERSION;
 use sp1_sdk::{HashableKey, SP1Proof, SP1ProofWithPublicValues, SP1VerifyingKey};
@@ -42,7 +42,7 @@ fn main() {
     let args = ProveArgs::parse();
 
     // Setup the prover client.
-    let proof_meta = prove_operator_phase1(args.clone()).unwrap();
+    let proof_meta = operator_phase1_begin(args.clone()).unwrap();
 
     let _proof = SP1ProofWithPublicValues {
         proof: SP1Proof::Core(proof_meta.proof.0),
