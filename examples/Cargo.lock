@@ -1732,11 +1732,13 @@ version = "1.0.1"
 dependencies = [
  "alloy-sol-types",
  "clap",
+ "hex",
  "itertools 0.12.1",
  "serde",
  "serde_json",
  "sha2 0.10.8",
  "sp1-helper",
+ "sp1-prover",
  "sp1-sdk",
  "tracing",
 ]
