@@ -2,7 +2,8 @@ use std::{fs::File, sync::Arc, time::Instant};
 
 use anyhow::Result;
 use sp1_prover::{
-    components::DefaultProverComponents, SP1CoreProof, SP1CoreProofData, SP1ProofWithMetadata,
+    components::DefaultProverComponents, SP1CoreProof, SP1CoreProofData, SP1DeferredMemoryLayout,
+    SP1ProofWithMetadata, SP1RecursionMemoryLayout,
 };
 use sysinfo::System;
 
@@ -11,15 +12,17 @@ use crate::{
     ProveArgs,
 };
 
+use p3_baby_bear::BabyBear;
 use sp1_core::{
     air::PublicValues,
     runtime::{Program, Runtime},
-    stark::MachineProver,
+    stark::{MachineProver, RiscvAir, ShardProof},
     utils::{SP1CoreOpts, SP1CoreProverError, SP1ProverOpts},
 };
+use sp1_recursion_core::stark::RecursionAir;
 use sp1_sdk::{
-    action, SP1Context, SP1Proof, SP1ProofKind, SP1ProofWithPublicValues, SP1Prover,
-    SP1PublicValues, SP1Stdin,
+    action, InnerSC, ProverClient, SP1Context, SP1Proof, SP1ProofKind, SP1ProofWithPublicValues,
+    SP1Prover, SP1PublicValues, SP1Stdin, SP1VerifyingKey,
 };
 
 pub fn build_runtime<'a>(
@@ -99,6 +102,29 @@ pub fn operator_phase1_begin(
         generate_checkpoints(&mut runtime).unwrap();
 
     Ok((public_values_stream, public_values, checkpoints))
+}
+
+pub fn operator_phase3_begin<'a>(
+    client: &'a ProverClient,
+    vk: &'a SP1VerifyingKey,
+    // proof: SP1CoreProof,
+    shard_proofs: Vec<ShardProof<InnerSC>>,
+    deferred_proofs: Vec<ShardProof<InnerSC>>,
+) -> (
+    Vec<SP1RecursionMemoryLayout<'a, InnerSC, RiscvAir<BabyBear>>>,
+    Vec<SP1DeferredMemoryLayout<'a, InnerSC, RecursionAir<BabyBear, 3>>>,
+) {
+    // let shard_proofs = &proof.proof.0;
+
+    let leaf_challenger = common::get_leaf_challenger(&client, &vk, proof);
+
+    client.prover.sp1_prover().get_first_layer_inputs(
+        &vk,
+        &leaf_challenger,
+        &shard_proofs,
+        &deferred_proofs,
+        2,
+    )
 }
 
 //     let (proof, public_values_stream, cycles) =

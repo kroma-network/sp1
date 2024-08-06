@@ -14,7 +14,7 @@ use std::path::PathBuf;
 
 use alloy_sol_types::{sol, SolType};
 use clap::Parser;
-use operator::operator_phase1_begin;
+use operator::{operator_phase1_begin, operator_phase3_begin};
 use serde::{Deserialize, Serialize};
 use sp1_core::SP1_CIRCUIT_VERSION;
 use sp1_sdk::{HashableKey, SP1Proof, SP1ProofWithPublicValues, SP1VerifyingKey};
@@ -44,12 +44,16 @@ fn main() {
     // Setup the prover client.
     let proof_meta = operator_phase1_begin(args.clone()).unwrap();
 
-    let _proof = SP1ProofWithPublicValues {
-        proof: SP1Proof::Core(proof_meta.proof.0),
-        stdin: proof_meta.stdin,
-        public_values: proof_meta.public_values,
-        sp1_version: SP1_CIRCUIT_VERSION.to_string(),
-    };
+    let (client, stdin, pk, vk) = common::init_client(args);
+
+    operator_phase3_begin(&client, &vk, vec![], vec![]);
+
+    // let _proof = SP1ProofWithPublicValues {
+    //     proof: SP1Proof::Core(proof_meta.proof.0),
+    //     stdin: proof_meta.stdin,
+    //     public_values: proof_meta.public_values,
+    //     sp1_version: SP1_CIRCUIT_VERSION.to_string(),
+    // };
 
     // if args.evm {
     //     // Generate the proof.

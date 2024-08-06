@@ -6,6 +6,8 @@ default-run = "fibonacci-script"
 publish = false
 
 [dependencies]
+p3-challenger = { workspace = true }
+p3-baby-bear = { workspace = true }
 clap = { version = "4.0", features = ["derive", "env"] }
 tracing = "0.1.40"
 hex = "0.4.3"

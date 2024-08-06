@@ -38,3 +38,5 @@ sp1-recursion-circuit = { path = "../recursion/circuit", default-features = fals
 sp1-sdk = { path = "../sdk" }
 sp1-lib = { path = "../zkvm/lib", default-features = false }
 sp1-zkvm = { path = "../zkvm/entrypoint", default-features = false }
+p3-baby-bear = { version = "0.1.3-succinct", features = ["nightly-features"] }
+p3-challenger = "0.1.3-succinct"

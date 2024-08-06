@@ -1,15 +1,20 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use p3_challenger::CanObserve;
 use sp1_core::{
     runtime::Program,
+    stark::{Challenger, MachineProver, StarkGenericConfig},
     utils::{SP1CoreOpts, SP1ProverOpts},
 };
 use sp1_prover::{
     components::DefaultProverComponents,
     types::{SP1ProvingKey, SP1VerifyingKey},
+    SP1CoreProof,
 };
-use sp1_sdk::{action, ProverClient, SP1Context, SP1ContextBuilder, SP1ProofKind, SP1Prover, SP1Stdin};
+use sp1_sdk::{
+    action, InnerSC, ProverClient, SP1Context, SP1ContextBuilder, SP1ProofKind, SP1Prover, SP1Stdin,
+};
 use sysinfo::System;
 
 use crate::ProveArgs;
@@ -34,7 +39,7 @@ pub fn bootstrap<'a>(
 ) -> Result<(Program, SP1CoreOpts, SP1Context<'a>)> {
     let kind = SP1ProofKind::default();
     let core_opts = SP1CoreOpts::default();
-    
+
     let mut context_builder = SP1ContextBuilder::default();
     let mut context = context_builder.build();
 
@@ -55,4 +60,22 @@ pub fn bootstrap<'a>(
     let program = Program::from(pk.elf.as_slice());
 
     Ok((program, core_opts, context))
+}
+
+pub fn get_leaf_challenger(
+    client: &ProverClient,
+    vk: &SP1VerifyingKey,
+    proof: SP1CoreProof,
+) -> Challenger<InnerSC> {
+    let shard_proofs = &proof.proof.0;
+
+    let mut leaf_challenger = client.prover.sp1_prover().core_prover.config().challenger();
+    vk.vk.observe_into(&mut leaf_challenger);
+    shard_proofs.iter().for_each(|proof| {
+        leaf_challenger.observe(proof.commitment.main_commit);
+        leaf_challenger.observe_slice(
+            &proof.public_values[0..client.prover.sp1_prover().core_prover.num_pv_elts()],
+        );
+    });
+    leaf_challenger
 }
