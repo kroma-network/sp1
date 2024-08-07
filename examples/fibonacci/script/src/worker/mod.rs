@@ -1,9 +1,7 @@
 use crate::common;
-use crate::operator::{build_runtime, ChallengerType};
+use crate::common::types::{ChallengerType, CommitmentPairType, RecordType};
 use crate::ProveArgs;
 use anyhow::Result;
-use p3_baby_bear::BabyBear;
-use p3_symmetric::Hash;
 use sp1_core::{
     air::PublicValues,
     runtime::ExecutionRecord,
@@ -13,10 +11,6 @@ use sp1_core::{
 use sp1_sdk::ExecutionReport;
 use std::fs::File;
 
-pub type CommitmentType = Hash<BabyBear, BabyBear, 8>;
-pub type RecordType = ExecutionRecord;
-pub type CommitmentPairType = (CommitmentType, RecordType);
-
 pub fn worker_phase1(
     args: &ProveArgs,
     idx: u32,
@@ -25,7 +19,6 @@ pub fn worker_phase1(
     public_values: PublicValues<u32, u32>,
 ) -> Result<(u32, Vec<CommitmentPairType>)> {
     let (client, _, pk, _) = common::init_client(args.clone());
-
     let (program, core_opts, _) = common::bootstrap(&client, &pk).unwrap();
 
     let mut deferred = ExecutionRecord::new(program.clone().into());
@@ -113,7 +106,7 @@ pub fn worker_phase2(
     let (client, stdin, pk, _) = common::init_client(args.clone());
     let (program, core_opts, context) = common::bootstrap(&client, &pk).unwrap();
     // Execute the program.
-    let runtime = build_runtime(program, &stdin, core_opts, context);
+    let runtime = common::build_runtime(program, &stdin, core_opts, context);
 
     let (stark_pk, _) = client
         .prover

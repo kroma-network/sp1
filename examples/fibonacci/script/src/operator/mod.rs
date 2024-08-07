@@ -1,43 +1,18 @@
-use crate::{common, worker::CommitmentPairType, ProveArgs};
+use crate::common;
+use crate::common::types::{
+    ChallengerType, CheckpointType, CommitmentPairType, PublicValueStreamType, PublicValuesType,
+};
+use crate::ProveArgs;
 use anyhow::Result;
 use core::panic;
-use p3_baby_bear::{BabyBear, DiffusionMatrixBabyBear};
-use p3_challenger::DuplexChallenger;
-use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};
+use p3_baby_bear::BabyBear;
 use sp1_core::{
-    air::PublicValues,
-    runtime::{Program, Runtime},
+    runtime::Runtime,
     stark::{MachineProof, MachineProver, MachineRecord, ShardProof, StarkGenericConfig},
-    utils::{BabyBearPoseidon2, SP1CoreOpts, SP1CoreProverError},
+    utils::{BabyBearPoseidon2, SP1CoreProverError},
 };
 use sp1_prover::{SP1CoreProof, SP1CoreProofData};
-use sp1_sdk::{SP1Context, SP1Proof, SP1ProofWithPublicValues, SP1PublicValues, SP1Stdin};
-use std::fs::File;
-
-pub type PublicValueStreamType = Vec<u8>;
-pub type PublicValuesType = PublicValues<u32, u32>;
-pub type CheckpointType = File;
-
-pub type ChallengerType = DuplexChallenger<
-    BabyBear,
-    Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7>,
-    16,
-    8,
->;
-
-pub fn build_runtime<'a>(
-    program: Program,
-    stdin: &SP1Stdin,
-    opts: SP1CoreOpts,
-    context: SP1Context<'a>,
-) -> Runtime<'a> {
-    let mut runtime = Runtime::with_context(program, opts, context);
-    runtime.write_vecs(&stdin.buffer);
-    for proof in stdin.proofs.iter() {
-        runtime.write_proof(proof.0.clone(), proof.1.clone());
-    }
-    runtime
-}
+use sp1_sdk::{SP1Proof, SP1ProofWithPublicValues, SP1PublicValues};
 
 pub fn generate_checkpoints(
     runtime: &mut Runtime,
@@ -88,7 +63,7 @@ pub fn prove_begin(
     tracing::info!("Program size = {}", program.instructions.len());
 
     // Execute the program.
-    let mut runtime = build_runtime(program, &stdin, core_opts, context);
+    let mut runtime = common::build_runtime(program, &stdin, core_opts, context);
 
     let (public_values_stream, public_values, checkpoints) =
         generate_checkpoints(&mut runtime).unwrap();
@@ -109,7 +84,7 @@ pub fn operator_phase1(
     let (program, core_opts, context) = common::bootstrap(&client, &pk).unwrap();
 
     // Execute the program.
-    let runtime = build_runtime(program, &stdin, core_opts, context);
+    let runtime = common::build_runtime(program, &stdin, core_opts, context);
 
     // Setup the machine.
     let (_, stark_vk) = client
