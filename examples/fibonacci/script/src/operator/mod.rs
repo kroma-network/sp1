@@ -1,12 +1,14 @@
 use crate::{common, worker::CommitmentPairType, ProveArgs};
 use anyhow::Result;
 use core::panic;
-use p3_baby_bear::BabyBear;
+use p3_baby_bear::{BabyBear, DiffusionMatrixBabyBear};
+use p3_challenger::DuplexChallenger;
+use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};
 use sp1_core::{
     air::PublicValues,
     runtime::{Program, Runtime},
-    stark::{MachineProof, MachineProver, MachineRecord, StarkGenericConfig},
-    utils::{SP1CoreOpts, SP1CoreProverError},
+    stark::{MachineProof, MachineProver, MachineRecord, ShardProof, StarkGenericConfig},
+    utils::{BabyBearPoseidon2, SP1CoreOpts, SP1CoreProverError},
 };
 use sp1_prover::{SP1CoreProof, SP1CoreProofData};
 use sp1_sdk::{SP1Context, SP1Proof, SP1ProofWithPublicValues, SP1PublicValues, SP1Stdin};
@@ -15,6 +17,13 @@ use std::fs::File;
 pub type PublicValueStreamType = Vec<u8>;
 pub type PublicValuesType = PublicValues<u32, u32>;
 pub type CheckpointType = File;
+
+pub type ChallengerType = DuplexChallenger<
+    BabyBear,
+    Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7>,
+    16,
+    8,
+>;
 
 pub fn build_runtime<'a>(
     program: Program,
@@ -66,7 +75,7 @@ pub fn generate_checkpoints(
     Ok((public_values_stream, public_values, checkpoints))
 }
 
-pub fn operator_phase1_begin(
+pub fn prove_begin(
     args: ProveArgs,
 ) -> Result<(
     PublicValueStreamType,
@@ -92,20 +101,18 @@ pub fn operator_phase1_begin(
     ))
 }
 
-pub fn operator_phase1_end(
+pub fn operator_phase1(
     args: ProveArgs,
     indexed_commitments: Vec<(u32, Vec<CommitmentPairType>)>,
-    public_values_stream: Vec<u8>,
-    cycles: u64,
-) -> Result<SP1ProofWithPublicValues> {
-    let (client, stdin, pk, vk) = common::init_client(args.clone());
+) -> Result<ChallengerType> {
+    let (client, stdin, pk, _) = common::init_client(args.clone());
     let (program, core_opts, context) = common::bootstrap(&client, &pk).unwrap();
 
     // Execute the program.
     let runtime = build_runtime(program, &stdin, core_opts, context);
 
     // Setup the machine.
-    let (stark_pk, stark_vk) = client
+    let (_, stark_vk) = client
         .prover
         .sp1_prover()
         .core_prover
@@ -137,16 +144,22 @@ pub fn operator_phase1_end(
         }
     }
 
-    let mut shard_proofs = Vec::new();
-    for record in records {
-        let shard_proof = client
-            .prover
-            .sp1_prover()
-            .core_prover
-            .commit_and_open(&stark_pk, record, &mut challenger.clone())
-            .unwrap();
-        shard_proofs.push(shard_proof);
-    }
+    Ok(challenger)
+}
+
+pub fn operator_phase2(
+    args: ProveArgs,
+    shard_proofs_vec: Vec<Vec<ShardProof<BabyBearPoseidon2>>>,
+    public_values_stream: PublicValueStreamType,
+    cycles: u64,
+) -> Result<SP1ProofWithPublicValues> {
+    let (client, stdin, _, vk) = common::init_client(args.clone());
+
+    let shard_proofs = shard_proofs_vec
+        .into_iter()
+        .flat_map(|vec| vec.into_iter())
+        .collect();
+
     let proof = MachineProof { shard_proofs };
 
     tracing::info!(
