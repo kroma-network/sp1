@@ -67,6 +67,34 @@ fn main() {
         cycles,
     )
     .unwrap();
+
+    let batch_size = 2;
+
+    let shard_proofs = &sp1_core_proof.proof.0;
+
+    let mut leaf_challenger = client.prover.sp1_prover().core_prover.config().challenger();
+    stark_vk.observe_into(&mut leaf_challenger);
+    for proof in shard_proofs {
+        client.prover.sp1_prover().core_prover.update(
+            &mut leaf_challenger,
+            proof.commitment.main_commit,
+            &proof.public_values[0..client
+                .prover
+                .sp1_prover()
+                .core_prover
+                .machine()
+                .num_pv_elts()],
+        );
+    }
+
+    let (core_inputs, deferred_inputs) = client.prover.sp1_prover().get_first_layer_inputs(
+        &vk,
+        &leaf_challenger,
+        shard_proofs,
+        &[],
+        2,
+    );
+
     println!("Successfully generated proof!");
 
     if !args.evm {
