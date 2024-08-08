@@ -18,6 +18,8 @@ members = [
   "sdk",
   "zkvm/*",
   "examples/fibonacci/script",
+  "mmo",
+  "ffi",
 ]
 exclude = ["examples/target"]
 resolver = "2"
@@ -42,6 +44,8 @@ debug = true
 debug-assertions = true
 
 [workspace.dependencies]
+fibonacci-script = { path = "examples/fibonacci/script" }
+sp1-ffi = { path = "ffi"}
 sp1-build = { path = "build", version = "1.0.1" }
 sp1-derive = { path = "derive", version = "1.0.1" }
 sp1-core = { path = "core", version = "1.0.1" }

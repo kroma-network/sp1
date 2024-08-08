@@ -11,22 +11,34 @@ use utils::{read_bin_file_to_vec, ChallengerState};
 
 pub fn prove_begin(
     args: &[u8],
-    o_public_values_stream: &mut Vec<u8>,
-    o_public_values: &mut Vec<u8>,
-    o_checkpoints: &mut Vec<Vec<u8>>,
-    o_cycles: &mut u64,
-) {
+    // o_public_values_stream_len: *mut usize,
+    // o_public_values_stream: *mut *mut u8,
+    // o_public_values: &mut Vec<u8>,
+    // o_checkpoints: &mut Vec<Vec<u8>>,
+    // o_cycles: &mut u64,
+) -> (Vec<u8>, Vec<u8>, Vec<Vec<u8>>, u64) {
     let args_obj = ProveArgs::from_slice(args);
     let (public_values_stream, public_values, checkpoints, cycles) =
         prove_begin_impl(args_obj).unwrap();
 
-    *o_public_values_stream = bincode::serialize(&public_values_stream).unwrap();
-    *o_public_values = bincode::serialize(&public_values).unwrap();
-    *o_checkpoints = checkpoints
+    // *o_public_values_stream = bincode::serialize(&public_values_stream).unwrap();
+    // unsafe {
+    //     *o_public_values_stream_len = public_values_stream.len();
+    //     *o_public_values_stream = Box::into_raw(public_values_stream.into_boxed_slice()) as *mut u8;
+    // }
+
+    let public_values_bytes = bincode::serialize(&public_values).unwrap();
+    let checkpoints_bytes: Vec<Vec<u8>> = checkpoints
         .into_iter()
         .map(|checkpoint| read_bin_file_to_vec(checkpoint).unwrap())
         .collect();
-    *o_cycles = cycles;
+
+    (
+        public_values_stream,
+        public_values_bytes,
+        checkpoints_bytes,
+        cycles,
+    )
 }
 
 pub fn operator_phase1(
