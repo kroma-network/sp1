@@ -7,6 +7,7 @@ use crate::{common, PublicValuesTuple};
 use alloy_sol_types::SolType;
 use anyhow::Result;
 use p3_baby_bear::BabyBear;
+use p3_challenger::CanObserve;
 use sp1_core::stark::MachineRecord;
 use sp1_core::{
     runtime::Runtime,
@@ -14,7 +15,9 @@ use sp1_core::{
     utils::{BabyBearPoseidon2, SP1CoreProverError},
 };
 use sp1_prover::{SP1CoreProof, SP1CoreProofData, SP1ProofWithMetadata};
-use sp1_sdk::{SP1Proof, SP1ProofWithPublicValues, SP1PublicValues};
+use sp1_sdk::{
+    SP1Proof, SP1ProofWithPublicValues, SP1Prover, SP1PublicValues, SP1Stdin, SP1VerifyingKey,
+};
 
 fn generate_checkpoints(
     runtime: &mut Runtime,
@@ -172,4 +175,34 @@ pub fn operator_core_end(args: &Vec<u8>, core_proof: &Vec<u8>) {
     let (_, _, fib_n) =
         PublicValuesTuple::abi_decode(proof.public_values.as_slice(), false).unwrap();
     tracing::info!("Public Input: {}", fib_n);
+}
+
+pub fn operator_phase3b_impl(
+    core_proof: SP1CoreProof,
+    sp1_prover: SP1Prover,
+    vk: &SP1VerifyingKey,
+    stdin: &SP1Stdin,
+) {
+    let deferred_proofs = stdin.proofs.iter().map(|p| p.0.clone()).collect();
+    let batch_size = 2;
+
+    let shard_proofs = &core_proof.proof.0;
+
+    // Get the leaf challenger.
+    let mut leaf_challenger = sp1_prover.core_prover.config().challenger();
+    vk.vk.observe_into(&mut leaf_challenger);
+    shard_proofs.iter().for_each(|proof| {
+        leaf_challenger.observe(proof.commitment.main_commit);
+        leaf_challenger
+            .observe_slice(&proof.public_values[0..sp1_prover.core_prover.num_pv_elts()]);
+    });
+
+    // Run the recursion and reduce programs.
+    let (core_inputs, deferred_inputs) = sp1_prover.get_first_layer_inputs(
+        vk,
+        &leaf_challenger,
+        shard_proofs,
+        &deferred_proofs,
+        batch_size,
+    );
 }
