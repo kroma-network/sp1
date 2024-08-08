@@ -52,7 +52,7 @@ fn generate_checkpoints(
     Ok((public_values_stream, public_values, checkpoints))
 }
 
-pub fn prove_begin_impl(
+pub fn operator_phase1_impl(
     args: ProveArgs,
 ) -> Result<(
     PublicValueStreamType,
@@ -78,7 +78,7 @@ pub fn prove_begin_impl(
     ))
 }
 
-pub fn operator_phase1_impl(
+pub fn operator_phase2_impl(
     args: ProveArgs,
     commitments_vec: Vec<Vec<CommitmentType>>,
     records_vec: Vec<Vec<RecordType>>,
@@ -122,7 +122,7 @@ pub fn operator_phase1_impl(
     Ok(challenger)
 }
 
-pub fn operator_phase2_impl(
+pub fn operator_phase3a_impl(
     args: ProveArgs,
     shard_proofs_vec: Vec<Vec<ShardProof<BabyBearPoseidon2>>>,
     public_values_stream: PublicValueStreamType,

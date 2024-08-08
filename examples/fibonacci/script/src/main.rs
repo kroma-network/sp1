@@ -12,7 +12,7 @@ pub mod worker;
 
 use clap::Parser;
 use fibonacci_script::{ProveArgs, PublicValuesTuple};
-use operator::{operator_phase1, operator_phase2, prove_begin, steps::operator_core_end};
+use operator::{operator_phase1, operator_phase2, operator_phase3a, steps::operator_core_end};
 use worker::{worker_phase1, worker_phase2};
 
 fn main() {
@@ -28,7 +28,7 @@ fn main() {
     let mut public_values = Vec::new();
     let mut checkpoints = Vec::new();
     let mut cycles = 0;
-    prove_begin(
+    operator_phase1(
         &serialize_args,
         &mut public_values_stream,
         &mut public_values,
@@ -58,7 +58,7 @@ fn main() {
     }
 
     let mut challenger_state = Vec::new();
-    operator_phase1(
+    operator_phase2(
         &serialize_args,
         &commitments_vec,
         &records_vec,
@@ -80,7 +80,7 @@ fn main() {
 
     // Core proof.
     let mut proof = Vec::new();
-    operator_phase2(
+    operator_phase3a(
         &serialize_args,
         &shard_proofs_vec,
         &public_values_stream,

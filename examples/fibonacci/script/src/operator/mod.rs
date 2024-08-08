@@ -6,10 +6,10 @@ use crate::{
     ProveArgs,
 };
 use sp1_core::{stark::ShardProof, utils::BabyBearPoseidon2};
-use steps::{operator_phase1_impl, operator_phase2_impl, prove_begin_impl};
+use steps::{operator_phase1_impl, operator_phase2_impl, operator_phase3a_impl};
 use utils::{read_bin_file_to_vec, ChallengerState};
 
-pub fn prove_begin(
+pub fn operator_phase1(
     args: &[u8],
     o_public_values_stream: &mut Vec<u8>,
     o_public_values: &mut Vec<u8>,
@@ -18,7 +18,7 @@ pub fn prove_begin(
 ) {
     let args_obj = ProveArgs::from_slice(args);
     let (public_values_stream, public_values, checkpoints, cycles) =
-        prove_begin_impl(args_obj).unwrap();
+        operator_phase1_impl(args_obj).unwrap();
 
     *o_public_values_stream = bincode::serialize(&public_values_stream).unwrap();
     *o_public_values = bincode::serialize(&public_values).unwrap();
@@ -29,7 +29,7 @@ pub fn prove_begin(
     *o_cycles = cycles;
 }
 
-pub fn operator_phase1(
+pub fn operator_phase2(
     args: &Vec<u8>,
     commitments_vec: &[Vec<u8>],
     records_vec: &[Vec<u8>],
@@ -45,11 +45,11 @@ pub fn operator_phase1(
         .map(|records| bincode::deserialize(records).unwrap())
         .collect();
 
-    let challenger = operator_phase1_impl(args_obj, commitments_vec, records_vec).unwrap();
+    let challenger = operator_phase2_impl(args_obj, commitments_vec, records_vec).unwrap();
     *o_challenger_state = ChallengerState::from(&challenger).to_bytes();
 }
 
-pub fn operator_phase2(
+pub fn operator_phase3a(
     args: &Vec<u8>,
     shard_proofs_vec: &[Vec<u8>],
     public_values_stream: &[u8],
@@ -61,7 +61,7 @@ pub fn operator_phase2(
         .iter()
         .map(|shard_proofs| bincode::deserialize(shard_proofs).unwrap())
         .collect();
-    let proof = operator_phase2_impl(
+    let proof = operator_phase3a_impl(
         args_obj,
         shard_proofs_vec_obj,
         public_values_stream.to_vec(),
