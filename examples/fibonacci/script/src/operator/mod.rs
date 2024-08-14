@@ -31,18 +31,28 @@ pub fn prove_begin(
 
 pub fn operator_phase1(
     args: &Vec<u8>,
-    commitments_vec: &[Vec<u8>],
-    records_vec: &[Vec<u8>],
+    commitments_vec: &[Vec<Vec<u8>>],
+    records_vec: &[Vec<Vec<u8>>],
     o_challenger_state: &mut Vec<u8>,
 ) {
     let args_obj = ProveArgs::from_slice(args.as_slice());
-    let commitments_vec: Vec<Vec<CommitmentType>> = commitments_vec
+    let commitments_vec = commitments_vec
         .iter()
-        .map(|commitments| bincode::deserialize(commitments).unwrap())
+        .map(|commitments| {
+            commitments
+                .iter()
+                .map(|commitment| bincode::deserialize(commitment.as_slice()).unwrap())
+                .collect()
+        })
         .collect();
-    let records_vec: Vec<Vec<RecordType>> = records_vec
+    let records_vec = records_vec
         .iter()
-        .map(|records| bincode::deserialize(records).unwrap())
+        .map(|records| {
+            records
+                .iter()
+                .map(|record| bincode::deserialize(record.as_slice()).unwrap())
+                .collect()
+        })
         .collect();
 
     let challenger = operator_phase1_impl(args_obj, commitments_vec, records_vec).unwrap();
@@ -51,19 +61,24 @@ pub fn operator_phase1(
 
 pub fn operator_phase2(
     args: &Vec<u8>,
-    shard_proofs_vec: &[Vec<u8>],
+    shard_proofs_vec: &[Vec<Vec<u8>>],
     public_values_stream: &[u8],
     cycles: u64,
     o_proof: &mut Vec<u8>,
 ) {
     let args_obj = ProveArgs::from_slice(args.as_slice());
-    let shard_proofs_vec_obj: Vec<Vec<ShardProof<BabyBearPoseidon2>>> = shard_proofs_vec
+    let shard_proofs_vec = shard_proofs_vec
         .iter()
-        .map(|shard_proofs| bincode::deserialize(shard_proofs).unwrap())
+        .map(|shard_proofs| {
+            shard_proofs
+                .iter()
+                .map(|shard_proof| bincode::deserialize(shard_proof.as_slice()).unwrap())
+                .collect()
+        })
         .collect();
     let proof = operator_phase2_impl(
         args_obj,
-        shard_proofs_vec_obj,
+        shard_proofs_vec,
         public_values_stream.to_vec(),
         cycles,
     )
