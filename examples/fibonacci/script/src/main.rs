@@ -8,7 +8,7 @@
 
 use clap::Parser;
 use fibonacci_script::FibonacciArgs;
-use sp1_sdk::multi_prover::{common::ProveArgs, scenario};
+use sp1_sdk::mmp::{common::ProveArgs, scenario};
 
 pub const FIBONACCI_ELF: &[u8] = include_bytes!("../../program/elf/riscv32im-succinct-zkvm-elf");
 
@@ -24,5 +24,5 @@ fn main() {
     };
 
     let (core_proof, _, plonk_proof) = scenario::plonk_prove::mpc_prove_plonk(&args).unwrap();
-    scenario::plonk_prove::scenario_end(&args, &core_proof, &plonk_proof)
+    let _ = scenario::plonk_prove::scenario_end(&args, &core_proof, &plonk_proof);
 }
