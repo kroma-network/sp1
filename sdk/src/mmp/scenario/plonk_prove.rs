@@ -48,7 +48,7 @@ pub fn scenario_end<T: Serialize + DeserializeOwned>(
     };
 
     client.verify(&proof, &vk).unwrap();
-    tracing::info!("Successfully verified compress proof");
+    tracing::info!("Successfully verified plonk proof");
 
     Ok(proof)
 }
