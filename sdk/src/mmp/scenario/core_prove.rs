@@ -110,8 +110,10 @@ pub fn scenario_end<T: Serialize + DeserializeOwned>(
         sp1_version: client.prover.version().to_string(),
     };
 
-    client.verify(&proof, &vk).expect("failed to verify proof");
-    tracing::info!("Successfully generated core-proof(verified)");
+    client
+        .verify(&proof, &vk)
+        .expect("failed to verify core proof");
+    tracing::info!("Successfully verified core proof");
 
     Ok(proof)
 }

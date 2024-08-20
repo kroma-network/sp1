@@ -47,7 +47,9 @@ pub fn scenario_end<T: Serialize + DeserializeOwned>(
         sp1_version: client.prover.version().to_string(),
     };
 
-    client.verify(&proof, &vk).unwrap();
+    client
+        .verify(&proof, &vk)
+        .expect("failed to verify plonk proof");
     tracing::info!("Successfully verified plonk proof");
 
     Ok(proof)
