@@ -17,7 +17,8 @@ use std::borrow::Borrow;
 use steps::{
     construct_sp1_core_proof_impl, operator_absorb_commits_impl,
     operator_prepare_compress_input_chunks_impl, operator_prepare_compress_inputs_impl,
-    operator_prove_plonk_impl, operator_prove_shrink_impl, operator_split_into_checkpoints_impl,
+    operator_prepare_plonk_witness_impl, operator_prove_plonk_impl, operator_prove_shrink_impl,
+    operator_split_into_checkpoints_impl,
 };
 use utils::{read_bin_file_to_vec, ChallengerState};
 
@@ -187,6 +188,20 @@ pub fn operator_prove_shrink<T: Serialize + DeserializeOwned>(
     let shrink_proof = operator_prove_shrink_impl(&args_obj, compressed_proof_obj).unwrap();
 
     *o_shrink_proof = bincode::serialize(&shrink_proof).unwrap();
+}
+
+pub fn operator_prepare_plonk_witness<T: Serialize + DeserializeOwned>(
+    args: &Vec<u8>,
+    shrink_proof: &[u8],
+    o_plonk_witness: &mut Vec<u8>,
+) {
+    let args_obj: ProveArgs<T> = ProveArgs::from_slice(args.as_slice());
+    let shrink_proof_obj: SP1ReduceProof<BabyBearPoseidon2> =
+        bincode::deserialize(shrink_proof).unwrap();
+
+    let plonk_witness = operator_prepare_plonk_witness_impl(&args_obj, shrink_proof_obj).unwrap();
+
+    *o_plonk_witness = serde_json::to_vec(&plonk_witness).unwrap();
 }
 
 pub fn operator_prove_plonk<T: Serialize + DeserializeOwned>(

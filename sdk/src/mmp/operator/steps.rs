@@ -15,12 +15,15 @@ use sp1_core::{
     stark::{MachineProof, MachineProver, ShardProof, StarkGenericConfig},
     utils::{BabyBearPoseidon2, SP1CoreProverError},
 };
+use sp1_prover::build::Witness;
 use sp1_prover::{
     PlonkBn254Proof, ReduceProgramType, SP1CoreProof, SP1CoreProofData, SP1DeferredMemoryLayout,
     SP1ProofWithMetadata, SP1Prover, SP1PublicValues, SP1RecursionMemoryLayout, SP1ReduceProof,
     SP1Stdin, SP1VerifyingKey,
 };
+use sp1_recursion_circuit::witness::Witnessable;
 use sp1_recursion_core::stark::RecursionAir;
+use sp1_recursion_gnark_ffi::witness::GnarkWitness;
 use tracing::info_span;
 
 fn operator_split_into_checkpoints(
@@ -236,6 +239,36 @@ pub fn operator_prove_shrink_impl<T: Serialize>(
     sp1_prover
         .shrink(compress_proof, opts)
         .map_err(|e| anyhow::anyhow!(e))
+}
+
+pub fn operator_prepare_plonk_witness_impl<T: Serialize>(
+    args: &ProveArgs<T>,
+    shrink_proof: SP1ReduceProof<BabyBearPoseidon2>,
+) -> Result<GnarkWitness> {
+    let (client, _, pk, _) = common::init_client(args);
+    let (_, opts, _) = common::bootstrap(&client, &pk).unwrap();
+    let sp1_prover = client.prover.sp1_prover();
+
+    let outer_proof = sp1_prover.wrap_bn254(shrink_proof, opts).unwrap();
+
+    let vkey_digest = outer_proof.sp1_vkey_digest_bn254();
+    let commited_values_digest = outer_proof.sp1_commited_values_digest_bn254();
+
+    std::fs::write("vkey_digest.txt", format!("{:?}", vkey_digest)).unwrap();
+    std::fs::write(
+        "commited_values_digest.txt",
+        format!("{:?}", commited_values_digest),
+    )
+    .unwrap();
+
+    let mut witness = Witness::default();
+    outer_proof.proof.write(&mut witness);
+    witness.write_commited_values_digest(commited_values_digest);
+    witness.write_vkey_hash(vkey_digest);
+
+    let gnark_witness = GnarkWitness::new(witness);
+
+    Ok(gnark_witness)
 }
 
 pub fn operator_prove_plonk_impl<T: Serialize>(
