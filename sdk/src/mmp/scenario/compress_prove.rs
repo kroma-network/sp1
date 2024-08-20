@@ -11,7 +11,7 @@ use anyhow::Result;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sp1_core::{stark::ShardProof, utils::BabyBearPoseidon2};
-use sp1_prover::SP1ReduceProof;
+use sp1_prover::{ReduceProgramType, SP1ReduceProof};
 use tracing::info_span;
 
 pub fn mpc_prove_compress<T: Serialize + DeserializeOwned>(
@@ -85,9 +85,11 @@ pub fn mpc_prove_compress<T: Serialize + DeserializeOwned>(
         }
     };
 
-    let shard_proof: ShardProof<BabyBearPoseidon2> =
+    let shard_proof: (ShardProof<BabyBearPoseidon2>, ReduceProgramType) =
         bincode::deserialize(&compressed_proof).unwrap();
-    let proof = SP1ReduceProof { proof: shard_proof };
+    let proof = SP1ReduceProof {
+        proof: shard_proof.0,
+    };
     let proof = bincode::serialize(&proof).unwrap();
     tracing::info!("proof size: {:?}", proof.len());
 
