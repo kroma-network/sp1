@@ -50,7 +50,7 @@ pub fn operator_absorb_commits<T: Serialize + DeserializeOwned>(
 ) {
     let mut system = System::new_all();
     let args_obj: ProveArgs<T> = ProveArgs::from_slice(args);
-    let commitments_vec: Vec<Vec<CommitmentType>> = commitments_vec
+    let commitments_vec_obj: Vec<Vec<CommitmentType>> = commitments_vec
         .iter()
         .map(|commitments| {
             commitments
@@ -60,31 +60,54 @@ pub fn operator_absorb_commits<T: Serialize + DeserializeOwned>(
         })
         .collect();
     system.refresh_all();
-    let used_memory = system.used_memory() / 10000000000;
+    let used_memory = system.used_memory() / 1000000000;
     let total_memory = system.total_memory() / 1000000000;
-    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
-    let records_vec = records_vec
+    tracing::info!(
+        "comm memory(used: {:?}, total: {:?})",
+        used_memory,
+        total_memory
+    );
+    let records_vec_obj = records_vec
         .iter()
         .map(|records| {
             records
                 .iter()
-                .map(|record| bincode::deserialize(record).unwrap())
+                .enumerate()
+                .map(|(idx, record)| {
+                    system.refresh_all();
+                    let used_memory = system.used_memory() / 1000000000;
+                    let total_memory = system.total_memory() / 1000000000;
+                    tracing::info!(
+                        "{:?}-th rec memory(used: {:?}, total: {:?})",
+                        idx,
+                        used_memory,
+                        total_memory
+                    );
+                    // tracing::info!("recode info: {:?} ", record.len());
+                    bincode::deserialize(record.as_slice()).unwrap()
+                })
                 .collect()
         })
         .collect();
     system.refresh_all();
-    let used_memory = system.used_memory() / 10000000000;
+    let used_memory = system.used_memory() / 1000000000;
     let total_memory = system.total_memory() / 1000000000;
-    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
+    tracing::info!(
+        "rec memory(used: {:?}, total: {:?})",
+        used_memory,
+        total_memory
+    );
+
     tracing::info!(
         "collected commitments: {:?}",
-        commitments_vec
+        commitments_vec_obj
             .iter()
             .map(|commitments| commitments.len())
             .sum::<usize>()
     );
 
-    let challenger = operator_absorb_commits_impl(&args_obj, commitments_vec, records_vec).unwrap();
+    let challenger =
+        operator_absorb_commits_impl(&args_obj, commitments_vec_obj, records_vec_obj).unwrap();
     *o_challenger_state = ChallengerState::from(&challenger).to_bytes();
 }
 
@@ -107,7 +130,7 @@ pub fn operator_construct_sp1_core_proof<T: Serialize + DeserializeOwned>(
         })
         .collect();
     system.refresh_all();
-    let used_memory = system.used_memory() / 10000000000;
+    let used_memory = system.used_memory() / 1000000000;
     let total_memory = system.total_memory() / 1000000000;
     tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let public_values_stream_obj: PublicValueStreamType =
@@ -121,12 +144,12 @@ pub fn operator_construct_sp1_core_proof<T: Serialize + DeserializeOwned>(
     )
     .unwrap();
     system.refresh_all();
-    let used_memory = system.used_memory() / 10000000000;
+    let used_memory = system.used_memory() / 1000000000;
     let total_memory = system.total_memory() / 1000000000;
     tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     *o_proof = bincode::serialize(&proof).unwrap();
     system.refresh_all();
-    let used_memory = system.used_memory() / 10000000000;
+    let used_memory = system.used_memory() / 1000000000;
     let total_memory = system.total_memory() / 1000000000;
     tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 }

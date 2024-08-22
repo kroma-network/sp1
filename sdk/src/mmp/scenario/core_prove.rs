@@ -26,7 +26,7 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
     let mut cycles = 0;
     info_span!("o_split_checkpoints").in_scope(|| {
         system.refresh_all();
-        let used_memory = system.used_memory() / 10000000000;
+        let used_memory = system.used_memory() / 1000000000;
         let total_memory = system.total_memory() / 1000000000;
         tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
         operator_split_into_checkpoints::<T>(
@@ -37,7 +37,7 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
             &mut cycles,
         );
         system.refresh_all();
-        let used_memory = system.used_memory() / 10000000000;
+        let used_memory = system.used_memory() / 1000000000;
         let total_memory = system.total_memory() / 1000000000;
         tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     });
@@ -48,7 +48,7 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
         let num_workers = checkpoints.len();
         for (worker_idx, checkpoint) in checkpoints.iter_mut().enumerate() {
             system.refresh_all();
-            let used_memory = system.used_memory() / 10000000000;
+            let used_memory = system.used_memory() / 1000000000;
             let total_memory = system.total_memory() / 1000000000;
             tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
             let mut commitments = Vec::new();
@@ -63,7 +63,7 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
                 &mut records,
             );
             system.refresh_all();
-            let used_memory = system.used_memory() / 10000000000;
+            let used_memory = system.used_memory() / 1000000000;
             let total_memory = system.total_memory() / 1000000000;
             tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
             tracing::info!("{:?}/{:?} worker done", worker_idx + 1, num_workers,);
@@ -75,7 +75,7 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
     let mut challenger_state = Vec::new();
     info_span!("o_absorb_commits").in_scope(|| {
         system.refresh_all();
-        let used_memory = system.used_memory() / 10000000000;
+        let used_memory = system.used_memory() / 1000000000;
         let total_memory = system.total_memory() / 1000000000;
         tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
         operator_absorb_commits::<T>(
@@ -85,7 +85,7 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
             &mut challenger_state,
         );
         system.refresh_all();
-        let used_memory = system.used_memory() / 10000000000;
+        let used_memory = system.used_memory() / 1000000000;
         let total_memory = system.total_memory() / 1000000000;
         tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     });
@@ -96,7 +96,7 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
         for (worker_idx, records) in records_vec.into_iter().enumerate() {
             let mut shard_proofs = Vec::new();
             system.refresh_all();
-            let used_memory = system.used_memory() / 10000000000;
+            let used_memory = system.used_memory() / 1000000000;
             let total_memory = system.total_memory() / 1000000000;
             tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
             worker_prove_checkpoint::<T>(
@@ -106,7 +106,7 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
                 &mut shard_proofs,
             );
             system.refresh_all();
-            let used_memory = system.used_memory() / 10000000000;
+            let used_memory = system.used_memory() / 1000000000;
             let total_memory = system.total_memory() / 1000000000;
             tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
             tracing::info!("{:?}/{:?} worker done", worker_idx + 1, num_workers,);
@@ -117,7 +117,7 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
     let mut proof = Vec::new();
     info_span!("o_construct_sp1_core_proof").in_scope(|| {
         system.refresh_all();
-        let used_memory = system.used_memory() / 10000000000;
+        let used_memory = system.used_memory() / 1000000000;
         let total_memory = system.total_memory() / 1000000000;
         tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
         operator_construct_sp1_core_proof::<T>(
@@ -128,7 +128,7 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
             &mut proof,
         );
         system.refresh_all();
-        let used_memory = system.used_memory() / 10000000000;
+        let used_memory = system.used_memory() / 1000000000;
         let total_memory = system.total_memory() / 1000000000;
         tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
         tracing::info!("proof size: {:?}", proof.len());
