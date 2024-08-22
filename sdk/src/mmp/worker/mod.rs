@@ -28,11 +28,28 @@ pub fn worker_commit_checkpoint<T: Serialize + DeserializeOwned>(
     o_commitments: &mut Vec<Vec<u8>>,
     o_records: &mut Vec<Vec<u8>>,
 ) {
+    let mut system = sysinfo::System::new_all();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let args_obj: ProveArgs<T> = ProveArgs::from_slice(args.as_slice());
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let execution_state: ExecutionState = bincode::deserialize(checkpoint.as_slice()).unwrap();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let mut checkpoint_file = tempfile::tempfile().unwrap();
     execution_state.save(&mut checkpoint_file).unwrap();
     let public_values_obj = bincode::deserialize(public_values).unwrap();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     let (commitments, records) = worker_commit_checkpoint_impl(
         &args_obj,
@@ -42,6 +59,10 @@ pub fn worker_commit_checkpoint<T: Serialize + DeserializeOwned>(
         public_values_obj,
     )
     .unwrap();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     tracing::info!("{:?} commitments were generated", commitments.len());
 
     *o_commitments = commitments
@@ -52,6 +73,10 @@ pub fn worker_commit_checkpoint<T: Serialize + DeserializeOwned>(
         .iter()
         .map(|record| bincode::serialize(record).unwrap())
         .collect();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 }
 
 pub fn worker_prove_checkpoint<T: Serialize + DeserializeOwned>(
@@ -60,22 +85,43 @@ pub fn worker_prove_checkpoint<T: Serialize + DeserializeOwned>(
     records: &[Vec<u8>],
     o_shard_proofs: &mut Vec<Vec<u8>>,
 ) {
+    let mut system = sysinfo::System::new_all();
     let args_obj: ProveArgs<T> = ProveArgs::from_slice(args.as_slice());
     let (client, _, _, _) = common::init_client(&args_obj);
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let challenger = ChallengerState::from_bytes(challenger_state.as_slice())
         .to_challenger(&client.prover.sp1_prover().core_prover.config().perm);
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let records = records
         .iter()
         .map(|record| bincode::deserialize(record).unwrap())
         .collect();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     let shard_proofs = worker_prove_checkpoint_impl(&args_obj, challenger, records).unwrap();
     tracing::info!("{:?} shard proofs were generated", shard_proofs.len());
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     *o_shard_proofs = shard_proofs
         .iter()
         .map(|proof| bincode::serialize(proof).unwrap())
         .collect();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 }
 
 pub fn worker_compress_proofs<T: Serialize + DeserializeOwned>(

@@ -29,8 +29,17 @@ pub fn worker_commit_checkpoint_impl<T: Serialize + DeserializeOwned>(
     is_last_checkpoint: bool,
     public_values: PublicValues<u32, u32>,
 ) -> Result<(Vec<CommitmentType>, Vec<RecordType>)> {
+    let mut system = sysinfo::System::new_all();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let (client, _, pk, _) = common::init_client(args);
     let (program, opts, _) = common::bootstrap(&client, &pk).unwrap();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     let mut deferred = ExecutionRecord::new(program.clone().into());
     let mut state = public_values.reset();
@@ -39,6 +48,10 @@ pub fn worker_commit_checkpoint_impl<T: Serialize + DeserializeOwned>(
 
     // Trace the checkpoint and reconstruct the execution records.
     let (mut records, report) = trace_checkpoint(program.clone(), checkpoint, opts.core_opts);
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     // Log some of the `ExecutionReport` information.
     tracing::debug!(
         "execution report (totals): total_cycles={}, total_syscall_cycles={}",
@@ -63,6 +76,10 @@ pub fn worker_commit_checkpoint_impl<T: Serialize + DeserializeOwned>(
         state.next_pc = record.public_values.next_pc;
         record.public_values = state;
     }
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     // Generate the dependencies.
     client
@@ -71,6 +88,10 @@ pub fn worker_commit_checkpoint_impl<T: Serialize + DeserializeOwned>(
         .core_prover
         .machine()
         .generate_dependencies(&mut records, &opts.core_opts);
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     // Defer events that are too expensive to include in every shard.
     for record in records.iter_mut() {
@@ -96,12 +117,20 @@ pub fn worker_commit_checkpoint_impl<T: Serialize + DeserializeOwned>(
         record.public_values = state;
     }
     records.append(&mut deferred);
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     // Committing to the shards.
     let commitments = records
         .iter()
         .map(|record| client.prover.sp1_prover().core_prover.commit(record))
         .collect::<Vec<_>>();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     Ok((commitments, records))
 }
@@ -111,16 +140,29 @@ pub fn worker_prove_checkpoint_impl<T: Serialize + DeserializeOwned>(
     challenger: ChallengerType,
     records: Vec<RecordType>,
 ) -> Result<Vec<ShardProof<BabyBearPoseidon2>>> {
+    let mut system = sysinfo::System::new_all();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let (client, stdin, pk, _) = common::init_client(&args);
     let (program, opts, context) = common::bootstrap(&client, &pk).unwrap();
     // Execute the program.
     let runtime = common::build_runtime(program, &stdin, opts, context);
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     let (stark_pk, _) = client
         .prover
         .sp1_prover()
         .core_prover
         .setup(runtime.program.as_ref());
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     let mut shard_proofs = Vec::new();
     for record in records {
@@ -132,6 +174,10 @@ pub fn worker_prove_checkpoint_impl<T: Serialize + DeserializeOwned>(
             .unwrap();
         shard_proofs.push(shard_proof);
     }
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     Ok(shard_proofs)
 }

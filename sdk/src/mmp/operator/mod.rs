@@ -19,6 +19,7 @@ use steps::{
     operator_prepare_compress_input_chunks_impl, operator_prepare_compress_inputs_impl,
     operator_prove_plonk_impl, operator_prove_shrink_impl, operator_split_into_checkpoints_impl,
 };
+use sysinfo::System;
 use utils::{read_bin_file_to_vec, ChallengerState};
 
 pub fn operator_split_into_checkpoints<T: Serialize + DeserializeOwned>(
@@ -47,6 +48,7 @@ pub fn operator_absorb_commits<T: Serialize + DeserializeOwned>(
     records_vec: &[Vec<Vec<u8>>],
     o_challenger_state: &mut Vec<u8>,
 ) {
+    let mut system = System::new_all();
     let args_obj: ProveArgs<T> = ProveArgs::from_slice(args);
     let commitments_vec: Vec<Vec<CommitmentType>> = commitments_vec
         .iter()
@@ -57,6 +59,10 @@ pub fn operator_absorb_commits<T: Serialize + DeserializeOwned>(
                 .collect()
         })
         .collect();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let records_vec = records_vec
         .iter()
         .map(|records| {
@@ -66,6 +72,10 @@ pub fn operator_absorb_commits<T: Serialize + DeserializeOwned>(
                 .collect()
         })
         .collect();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     tracing::info!(
         "collected commitments: {:?}",
         commitments_vec
@@ -85,6 +95,7 @@ pub fn operator_construct_sp1_core_proof<T: Serialize + DeserializeOwned>(
     cycles: u64,
     o_proof: &mut Vec<u8>,
 ) {
+    let mut system = System::new_all();
     let args_obj: ProveArgs<T> = ProveArgs::from_slice(args.as_slice());
     let shard_proofs_vec_obj = shard_proofs_vec
         .iter()
@@ -95,6 +106,10 @@ pub fn operator_construct_sp1_core_proof<T: Serialize + DeserializeOwned>(
                 .collect()
         })
         .collect();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let public_values_stream_obj: PublicValueStreamType =
         bincode::deserialize(public_values_stream).unwrap();
 
@@ -105,7 +120,15 @@ pub fn operator_construct_sp1_core_proof<T: Serialize + DeserializeOwned>(
         cycles,
     )
     .unwrap();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     *o_proof = bincode::serialize(&proof).unwrap();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 }
 
 pub fn operator_prepare_compress_inputs<T: Serialize + DeserializeOwned>(

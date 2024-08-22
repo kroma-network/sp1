@@ -11,18 +11,24 @@ use anyhow::Result;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sp1_prover::SP1CoreProof;
+use sysinfo::System;
 use tracing::info_span;
 
 pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> Result<Vec<u8>> {
     let span = info_span!("kroma_core");
     let _guard = span.entered();
 
+    let mut system = System::new_all();
     let serialize_args = bincode::serialize(&args).unwrap();
     let mut public_values_stream = Vec::new();
     let mut public_values = Vec::new();
     let mut checkpoints = Vec::new();
     let mut cycles = 0;
     info_span!("o_split_checkpoints").in_scope(|| {
+        system.refresh_all();
+        let used_memory = system.used_memory() / 10000000000;
+        let total_memory = system.total_memory() / 1000000000;
+        tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
         operator_split_into_checkpoints::<T>(
             &serialize_args,
             &mut public_values_stream,
@@ -30,6 +36,10 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
             &mut checkpoints,
             &mut cycles,
         );
+        system.refresh_all();
+        let used_memory = system.used_memory() / 10000000000;
+        let total_memory = system.total_memory() / 1000000000;
+        tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     });
 
     let mut commitments_vec = Vec::new();
@@ -37,6 +47,10 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
     info_span!("w_commit_checkpoint").in_scope(|| {
         let num_workers = checkpoints.len();
         for (worker_idx, checkpoint) in checkpoints.iter_mut().enumerate() {
+            system.refresh_all();
+            let used_memory = system.used_memory() / 10000000000;
+            let total_memory = system.total_memory() / 1000000000;
+            tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
             let mut commitments = Vec::new();
             let mut records = Vec::new();
             worker_commit_checkpoint::<T>(
@@ -48,6 +62,10 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
                 &mut commitments,
                 &mut records,
             );
+            system.refresh_all();
+            let used_memory = system.used_memory() / 10000000000;
+            let total_memory = system.total_memory() / 1000000000;
+            tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
             tracing::info!("{:?}/{:?} worker done", worker_idx + 1, num_workers,);
             commitments_vec.push(commitments);
             records_vec.push(records);
@@ -56,12 +74,20 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
 
     let mut challenger_state = Vec::new();
     info_span!("o_absorb_commits").in_scope(|| {
+        system.refresh_all();
+        let used_memory = system.used_memory() / 10000000000;
+        let total_memory = system.total_memory() / 1000000000;
+        tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
         operator_absorb_commits::<T>(
             &serialize_args,
             &commitments_vec,
             &records_vec,
             &mut challenger_state,
         );
+        system.refresh_all();
+        let used_memory = system.used_memory() / 10000000000;
+        let total_memory = system.total_memory() / 1000000000;
+        tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     });
 
     let mut shard_proofs_vec = Vec::new();
@@ -69,12 +95,20 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
         let num_workers = records_vec.len();
         for (worker_idx, records) in records_vec.into_iter().enumerate() {
             let mut shard_proofs = Vec::new();
+            system.refresh_all();
+            let used_memory = system.used_memory() / 10000000000;
+            let total_memory = system.total_memory() / 1000000000;
+            tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
             worker_prove_checkpoint::<T>(
                 &serialize_args,
                 &challenger_state,
                 records.as_slice(),
                 &mut shard_proofs,
             );
+            system.refresh_all();
+            let used_memory = system.used_memory() / 10000000000;
+            let total_memory = system.total_memory() / 1000000000;
+            tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
             tracing::info!("{:?}/{:?} worker done", worker_idx + 1, num_workers,);
             shard_proofs_vec.push(shard_proofs);
         }
@@ -82,6 +116,10 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
 
     let mut proof = Vec::new();
     info_span!("o_construct_sp1_core_proof").in_scope(|| {
+        system.refresh_all();
+        let used_memory = system.used_memory() / 10000000000;
+        let total_memory = system.total_memory() / 1000000000;
+        tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
         operator_construct_sp1_core_proof::<T>(
             &serialize_args,
             &shard_proofs_vec,
@@ -89,6 +127,10 @@ pub fn mpc_prove_core<T: Serialize + DeserializeOwned>(args: &ProveArgs<T>) -> R
             cycles,
             &mut proof,
         );
+        system.refresh_all();
+        let used_memory = system.used_memory() / 10000000000;
+        let total_memory = system.total_memory() / 1000000000;
+        tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
         tracing::info!("proof size: {:?}", proof.len());
     });
 

@@ -21,6 +21,7 @@ use sp1_prover::{
     SP1Stdin, SP1VerifyingKey,
 };
 use sp1_recursion_core::stark::RecursionAir;
+use sysinfo::System;
 use tracing::info_span;
 
 fn operator_split_into_checkpoints(
@@ -67,15 +68,32 @@ pub fn operator_split_into_checkpoints_impl<T: Serialize>(
     Vec<CheckpointType>,
     u64,
 )> {
+    let mut system = System::new_all();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let (client, stdin, pk, _) = common::init_client(args);
     let (program, opts, context) = common::bootstrap(&client, &pk).unwrap();
     tracing::info!("program size = {}", program.instructions.len());
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     // Execute the program.
     let mut runtime = common::build_runtime(program, &stdin, opts, context);
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     let (public_values_stream, public_values, checkpoints) =
         operator_split_into_checkpoints(&mut runtime).unwrap();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     Ok((
         public_values_stream,
@@ -90,16 +108,29 @@ pub fn operator_absorb_commits_impl<T: Serialize>(
     commitments_vec: Vec<Vec<CommitmentType>>,
     records_vec: Vec<Vec<RecordType>>,
 ) -> Result<ChallengerType> {
+    let mut system = System::new_all();
     if commitments_vec.len() != records_vec.len() {
         return Err(anyhow::anyhow!(
             "commitments_vec and records_vec must have the same length"
         ));
     }
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let (client, stdin, pk, _) = common::init_client(args);
     let (program, opts, context) = common::bootstrap(&client, &pk).unwrap();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     // Execute the program.
     let runtime = common::build_runtime(program, &stdin, opts, context);
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     // Setup the machine.
     let (_, stark_vk) = client
@@ -107,9 +138,17 @@ pub fn operator_absorb_commits_impl<T: Serialize>(
         .sp1_prover()
         .core_prover
         .setup(runtime.program.as_ref());
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     let mut challenger = client.prover.sp1_prover().core_prover.config().challenger();
     stark_vk.observe_into(&mut challenger);
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     for (commitments, records) in commitments_vec.into_iter().zip(records_vec.into_iter()) {
         for (commitment, record) in commitments.into_iter().zip(records.into_iter()) {
@@ -125,6 +164,10 @@ pub fn operator_absorb_commits_impl<T: Serialize>(
             );
         }
     }
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     Ok(challenger)
 }
@@ -135,15 +178,26 @@ pub fn construct_sp1_core_proof_impl<T: Serialize>(
     public_values_stream: PublicValueStreamType,
     cycles: u64,
 ) -> Result<SP1ProofWithMetadata<SP1CoreProofData>> {
+    let mut system = System::new_all();
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let (_, stdin, _, _) = common::init_client(args);
-
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     let shard_proofs = shard_proofs_vec
         .into_iter()
         .flat_map(|vec| vec.into_iter())
         .collect();
 
     let proof = MachineProof { shard_proofs };
-
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
     tracing::info!(
         "summary: proofSize={}",
         bincode::serialize(&proof).unwrap().len(),
@@ -156,6 +210,10 @@ pub fn construct_sp1_core_proof_impl<T: Serialize>(
         public_values,
         cycles,
     };
+    system.refresh_all();
+    let used_memory = system.used_memory() / 10000000000;
+    let total_memory = system.total_memory() / 1000000000;
+    tracing::info!("memory(used: {:?}, total: {:?})", used_memory, total_memory);
 
     Ok(sp1_core_proof)
 }
