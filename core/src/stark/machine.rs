@@ -693,6 +693,7 @@ pub mod tests {
         run_test::<DefaultProver<_, _>>(program).unwrap();
     }
 
+    #[cfg(not(feature = "tachyon"))]
     #[test]
     fn test_key_serde() {
         let program = ssz_withdrawals_program();

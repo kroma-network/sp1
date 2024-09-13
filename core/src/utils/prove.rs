@@ -591,11 +591,10 @@ use p3_uni_stark::Proof;
 pub mod baby_bear_poseidon2 {
 
     use p3_baby_bear::{BabyBear, DiffusionMatrixBabyBear};
-    use p3_challenger::DuplexChallenger;
     use p3_commit::ExtensionMmcs;
     use p3_dft::Radix2DitParallel;
     use p3_field::{extension::BinomialExtensionField, Field};
-    use p3_fri::{FriConfig, TwoAdicFriPcs};
+    use p3_fri::FriConfig;
     use p3_merkle_tree::FieldMerkleTreeMmcs;
     use p3_poseidon2::Poseidon2;
     use p3_poseidon2::Poseidon2ExternalMatrixGeneral;
@@ -620,8 +619,14 @@ pub mod baby_bear_poseidon2 {
     >;
     pub type ChallengeMmcs = ExtensionMmcs<Val, Challenge, ValMmcs>;
     pub type Dft = Radix2DitParallel;
-    pub type Challenger = DuplexChallenger<Val, Perm, 16, 8>;
-    type Pcs = TwoAdicFriPcs<Val, Dft, ValMmcs, ChallengeMmcs>;
+    #[cfg(feature = "tachyon")]
+    pub type Challenger = crate::baby_bear_poseidon2::DuplexChallenger<Val, Perm, 16, 8>;
+    #[cfg(not(feature = "tachyon"))]
+    pub type Challenger = p3_challenger::DuplexChallenger<Val, Perm, 16, 8>;
+    #[cfg(feature = "tachyon")]
+    type Pcs = crate::baby_bear_poseidon2::TwoAdicFriPcs<Val, Dft, ValMmcs, ChallengeMmcs>;
+    #[cfg(not(feature = "tachyon"))]
+    type Pcs = p3_fri::TwoAdicFriPcs<Val, Dft, ValMmcs, ChallengeMmcs>;
 
     pub fn my_perm() -> Perm {
         const ROUNDS_F: usize = 8;
@@ -694,12 +699,17 @@ pub mod baby_bear_poseidon2 {
     impl BabyBearPoseidon2 {
         pub fn new() -> Self {
             let perm = my_perm();
-            let hash = MyHash::new(perm.clone());
-            let compress = MyCompress::new(perm.clone());
-            let val_mmcs = ValMmcs::new(hash, compress);
-            let dft = Dft {};
             let fri_config = default_fri_config();
-            let pcs = Pcs::new(27, dft, val_mmcs, fri_config);
+            #[cfg(feature = "tachyon")]
+            let pcs = Pcs::new(27, fri_config);
+            #[cfg(not(feature = "tachyon"))]
+            let pcs = {
+                let hash = MyHash::new(perm.clone());
+                let compress = MyCompress::new(perm.clone());
+                let val_mmcs = ValMmcs::new(hash, compress);
+                let dft = Dft {};
+                Pcs::new(27, dft, val_mmcs, fri_config)
+            };
             Self {
                 pcs,
                 perm,
@@ -709,12 +719,17 @@ pub mod baby_bear_poseidon2 {
 
         pub fn compressed() -> Self {
             let perm = my_perm();
-            let hash = MyHash::new(perm.clone());
-            let compress = MyCompress::new(perm.clone());
-            let val_mmcs = ValMmcs::new(hash, compress);
-            let dft = Dft {};
             let fri_config = compressed_fri_config();
-            let pcs = Pcs::new(27, dft, val_mmcs, fri_config);
+            #[cfg(feature = "tachyon")]
+            let pcs = Pcs::new(27, fri_config);
+            #[cfg(not(feature = "tachyon"))]
+            let pcs = {
+                let hash = MyHash::new(perm.clone());
+                let compress = MyCompress::new(perm.clone());
+                let val_mmcs = ValMmcs::new(hash, compress);
+                let dft = Dft {};
+                Pcs::new(27, dft, val_mmcs, fri_config)
+            };
             Self {
                 pcs,
                 perm,
@@ -766,6 +781,9 @@ pub mod baby_bear_poseidon2 {
         }
 
         fn challenger(&self) -> Self::Challenger {
+            #[cfg(feature = "tachyon")]
+            return Challenger::new();
+            #[cfg(not(feature = "tachyon"))]
             Challenger::new(self.perm.clone())
         }
     }
