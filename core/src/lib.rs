@@ -15,6 +15,7 @@
 
 pub mod air;
 pub mod alu;
+pub mod baby_bear_poseidon2;
 pub mod bytes;
 pub mod cpu;
 pub mod disassembler;
@@ -26,6 +27,7 @@ pub mod program;
 pub mod runtime;
 pub mod stark;
 pub mod syscall;
+pub mod util;
 pub mod utils;
 
 #[allow(unused_imports)]
