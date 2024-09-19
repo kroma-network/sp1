@@ -4909,6 +4909,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sp1-ffi"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "fibonacci-script",
+ "sp1-core",
+ "sp1-prover",
+ "sp1-sdk",
+]
+
+[[package]]
 name = "sp1-helper"
 version = "1.0.1"
 dependencies = [
