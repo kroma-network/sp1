@@ -1,3 +1,5 @@
+use std::io::Cursor;
+
 use p3_baby_bear::BabyBear;
 use p3_challenger::DuplexChallenger;
 use p3_commit::TwoAdicMultiplicativeCoset;
@@ -8,6 +10,7 @@ use sp1_core::stark::StarkGenericConfig;
 use sp1_core::stark::{
     AirOpenedValues, ChipOpenedValues, Com, RiscvAir, ShardCommitment, ShardOpenedValues,
 };
+use sp1_core::util::Readable;
 use sp1_core::utils::{
     BabyBearPoseidon2, InnerChallenge, InnerDigest, InnerDigestHash, InnerPcsProof, InnerPerm,
     InnerVal,
@@ -416,6 +419,32 @@ impl Hintable<C> for DuplexChallenger<InnerVal, InnerPerm, 16, 8> {
         output_padded.resize(PERMUTATION_WIDTH, InnerVal::zero());
         stream.extend(output_padded.write());
         stream
+    }
+}
+
+impl Hintable<C> for sp1_core::baby_bear_poseidon2::DuplexChallenger<InnerVal, InnerPerm, 16, 8> {
+    type HintVariable = DuplexChallengerVariable<C>;
+
+    fn read(builder: &mut Builder<C>) -> Self::HintVariable {
+        let sponge_state = builder.hint_felts();
+        let nb_inputs = builder.hint_var();
+        let input_buffer = builder.hint_felts();
+        let nb_outputs = builder.hint_var();
+        let output_buffer = builder.hint_felts();
+        DuplexChallengerVariable {
+            sponge_state,
+            nb_inputs,
+            input_buffer,
+            nb_outputs,
+            output_buffer,
+        }
+    }
+
+    fn write(&self) -> Vec<Vec<Block<<C as Config>::F>>> {
+        let buffer = self.write_hint();
+        let mut reader = Cursor::new(buffer);
+        let values = Vec::<Vec<[u32; 4]>>::read_from(&mut reader).unwrap();
+        unsafe { std::mem::transmute(values) }
     }
 }
 

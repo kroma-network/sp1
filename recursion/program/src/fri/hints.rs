@@ -1,5 +1,8 @@
+use std::io::Cursor;
+
 use p3_field::AbstractExtensionField;
 use p3_field::AbstractField;
+use sp1_core::util::Readable;
 use sp1_core::utils::{
     InnerBatchOpening, InnerChallenge, InnerCommitPhaseStep, InnerDigest, InnerFriProof,
     InnerPcsProof, InnerQueryProof, InnerVal,
@@ -298,5 +301,25 @@ impl Hintable<C> for InnerPcsProof {
         stream.extend(self.fri_proof.write());
         stream.extend(self.query_openings.write());
         stream
+    }
+}
+
+impl Hintable<C> for sp1_core::baby_bear_poseidon2::FriProof {
+    type HintVariable = TwoAdicPcsProofVariable<C>;
+
+    fn read(builder: &mut Builder<C>) -> Self::HintVariable {
+        let fri_proof = InnerFriProof::read(builder);
+        let query_openings = Vec::<Vec<InnerBatchOpening>>::read(builder);
+        Self::HintVariable {
+            fri_proof,
+            query_openings,
+        }
+    }
+
+    fn write(&self) -> Vec<Vec<Block<<C as Config>::F>>> {
+        let buffer = self.write_hint();
+        let mut reader = Cursor::new(buffer);
+        let values = Vec::<Vec<[u32; 4]>>::read_from(&mut reader).unwrap();
+        unsafe { std::mem::transmute(values) }
     }
 }

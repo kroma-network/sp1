@@ -52,3 +52,4 @@ path = "scripts/e2e.rs"
 neon = ["sp1-core/neon"]
 native-gnark = ["sp1-recursion-gnark-ffi/native"]
 export-tests = []
+tachyon = ["sp1-core/tachyon"]

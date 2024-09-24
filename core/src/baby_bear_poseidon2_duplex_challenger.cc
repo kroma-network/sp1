@@ -21,6 +21,21 @@ rust::Box<TachyonBabyBear> DuplexChallenger::sample() {
       reinterpret_cast<TachyonBabyBear*>(ret));
 }
 
+rust::Vec<uint8_t> DuplexChallenger::write_hint() const {
+  rust::Vec<uint8_t> ret;
+  size_t size;
+  tachyon_sp1_baby_bear_poseidon2_duplex_challenger_write_hint(challenger_,
+                                                               nullptr, &size);
+  // NOTE(chokobole): |rust::Vec<uint8_t>| doesn't have |resize()|.
+  ret.reserve(size);
+  for (size_t i = 0; i < size; ++i) {
+    ret.push_back(0);
+  }
+  tachyon_sp1_baby_bear_poseidon2_duplex_challenger_write_hint(
+      challenger_, ret.data(), &size);
+  return ret;
+}
+
 std::unique_ptr<DuplexChallenger> DuplexChallenger::clone() const {
   return std::make_unique<DuplexChallenger>(
       tachyon_sp1_baby_bear_poseidon2_duplex_challenger_clone(challenger_));

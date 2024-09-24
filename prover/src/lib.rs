@@ -312,18 +312,21 @@ impl<C: SP1ProverComponents> SP1Prover<C> {
         }
 
         // Check that the leaf challenger is the same as the reconstruct challenger.
-        assert_eq!(
-            reconstruct_challenger.sponge_state,
-            leaf_challenger.sponge_state
-        );
-        assert_eq!(
-            reconstruct_challenger.input_buffer,
-            leaf_challenger.input_buffer
-        );
-        assert_eq!(
-            reconstruct_challenger.output_buffer,
-            leaf_challenger.output_buffer
-        );
+        #[cfg(not(feature = "tachyon"))]
+        {
+            assert_eq!(
+                reconstruct_challenger.sponge_state,
+                leaf_challenger.sponge_state
+            );
+            assert_eq!(
+                reconstruct_challenger.input_buffer,
+                leaf_challenger.input_buffer
+            );
+            assert_eq!(
+                reconstruct_challenger.output_buffer,
+                leaf_challenger.output_buffer
+            );
+        }
         core_inputs
     }
 

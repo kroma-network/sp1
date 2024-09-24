@@ -1,6 +1,8 @@
 #ifndef CORE_INCLUDE_BABY_BEAR_POSEIDON2_FRI_PROOF_H_
 #define CORE_INCLUDE_BABY_BEAR_POSEIDON2_FRI_PROOF_H_
 
+#include <stdint.h>
+
 #include <memory>
 
 #include <tachyon/c/zk/air/sp1/baby_bear_poseidon2_fri_proof.h>
@@ -21,11 +23,16 @@ class FriProof {
     return proof_;
   }
 
+  rust::Vec<uint8_t> write_hint() const;
+  rust::Vec<uint8_t> serialize() const;
   std::unique_ptr<FriProof> clone() const;
 
  private:
   tachyon_sp1_baby_bear_poseidon2_fri_proof* proof_;
 };
+
+std::unique_ptr<FriProof> deserialize_fri_proof(
+    rust::Slice<const uint8_t> data);
 
 }  // namespace tachyon::sp1_api::baby_bear_poseidon2
 
