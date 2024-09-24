@@ -68,6 +68,7 @@ pub mod ffi {
         fn new_duplex_challenger() -> UniquePtr<DuplexChallenger>;
         fn observe(self: Pin<&mut DuplexChallenger>, value: &TachyonBabyBear);
         fn sample(self: Pin<&mut DuplexChallenger>) -> Box<TachyonBabyBear>;
+        fn write_hint(&self) -> Vec<u8>;
         fn clone(&self) -> UniquePtr<DuplexChallenger>;
     }
 
@@ -76,6 +77,9 @@ pub mod ffi {
 
         type FriProof;
 
+        fn deserialize_fri_proof(data: &[u8]) -> UniquePtr<FriProof>;
+        fn write_hint(&self) -> Vec<u8>;
+        fn serialize(&self) -> Vec<u8>;
         fn clone(&self) -> UniquePtr<FriProof>;
     }
 
@@ -143,7 +147,9 @@ pub mod ffi {
 
         type ProverData;
 
+        fn deserialize_prover_data(data: &[u8]) -> UniquePtr<ProverData>;
         fn write_commit(&self, values: &mut [TachyonBabyBear]);
+        fn serialize(&self) -> Vec<u8>;
         fn clone(&self) -> UniquePtr<ProverData>;
     }
 
@@ -280,6 +286,10 @@ impl<F, P, const WIDTH: usize, const RATE: usize> DuplexChallenger<F, P, WIDTH, 
             inner: ffi::new_duplex_challenger(),
             _marker: PhantomData,
         }
+    }
+
+    pub fn write_hint(&self) -> Vec<u8> {
+        self.inner.write_hint()
     }
 }
 
@@ -418,20 +428,21 @@ unsafe impl Sync for ffi::FriProof {}
 // NOTE: This is needed by `Pcs` trait.
 // See https://github.com/Plonky3/Plonky3/blob/eeb4e37/commit/src/pcs.rs#L31.
 impl Serialize for FriProof {
-    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        todo!("Not implemented yet")
+        serializer.serialize_bytes(self.inner.serialize().as_slice())
     }
 }
 
 impl<'de> Deserialize<'de> for FriProof {
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        todo!("Not implemented yet")
+        serde_bytes::deserialize::<serde_bytes::ByteBuf, _>(deserializer)
+            .map(|byte_buf| Self::new(ffi::deserialize_fri_proof(byte_buf.as_slice())))
     }
 }
 
@@ -446,6 +457,10 @@ impl Clone for FriProof {
 impl FriProof {
     pub fn new(inner: cxx::UniquePtr<ffi::FriProof>) -> Self {
         Self { inner }
+    }
+
+    pub fn write_hint(&self) -> Vec<u8> {
+        self.inner.write_hint()
     }
 }
 
@@ -563,20 +578,21 @@ unsafe impl Sync for ffi::ProverData {}
 // NOTE: This is needed by `ShardMainData` struct.
 // See https://github.com/succinctlabs/sp1/blob/dd032eb/core/src/stark/types.rs#L13
 impl<Val> Serialize for ProverData<Val> {
-    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        todo!("Not implemented yet")
+        serializer.serialize_bytes(self.inner.serialize().as_slice())
     }
 }
 
 impl<'de, Val> Deserialize<'de> for ProverData<Val> {
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        todo!("Not implemented yet")
+        serde_bytes::deserialize::<serde_bytes::ByteBuf, _>(deserializer)
+            .map(|byte_buf| Self::new(ffi::deserialize_prover_data(byte_buf.as_slice())))
     }
 }
 

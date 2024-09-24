@@ -701,6 +701,10 @@ pub mod baby_bear_poseidon2 {
             let perm = my_perm();
             let fri_config = default_fri_config();
             #[cfg(feature = "tachyon")]
+            log::info!("tachyon");
+            #[cfg(not(feature = "tachyon"))]
+            log::info!("plonky3");
+            #[cfg(feature = "tachyon")]
             let pcs = Pcs::new(27, fri_config);
             #[cfg(not(feature = "tachyon"))]
             let pcs = {

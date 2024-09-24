@@ -35,3 +35,4 @@ stacker = "0.1"
 
 [features]
 debug = ["sp1-core/debug"]
+tachyon = ["sp1-core/tachyon"]
