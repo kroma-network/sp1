@@ -791,12 +791,21 @@ pub mod tests {
         let (pk, vk) = prover.setup(elf);
 
         tracing::info!("prove core");
+        let start = std::time::Instant::now();
+        let mut elapsed = std::time::Duration::ZERO;
+        let mut prev_elapsed = std::time::Duration::ZERO;
         let stdin = SP1Stdin::new();
         let core_proof = prover.prove_core(&pk, &stdin, opts, context)?;
         let public_values = core_proof.public_values.clone();
+        elapsed = start.elapsed() - prev_elapsed;
+        tracing::info!("prove core: {:?}", elapsed);
+        prev_elapsed = elapsed;
 
         tracing::info!("verify core");
         prover.verify(&core_proof.proof, &vk)?;
+        elapsed = start.elapsed() - prev_elapsed;
+        tracing::info!("verify core: {:?}", elapsed);
+        prev_elapsed = elapsed;
 
         if test_kind == Test::Core {
             return Ok(());
@@ -804,19 +813,31 @@ pub mod tests {
 
         tracing::info!("compress");
         let compressed_proof = prover.compress(&vk, core_proof, vec![], opts)?;
+        elapsed = start.elapsed() - prev_elapsed;
+        tracing::info!("compress: {:?}", elapsed);
+        prev_elapsed = elapsed;
 
         tracing::info!("verify compressed");
         prover.verify_compressed(&compressed_proof, &vk)?;
+        elapsed = start.elapsed() - prev_elapsed;
+        tracing::info!("verify compressed: {:?}", elapsed);
+        prev_elapsed = elapsed;
 
         if test_kind == Test::Compress {
             return Ok(());
         }
-
+        panic!("compress done");
         tracing::info!("shrink");
         let shrink_proof = prover.shrink(compressed_proof, opts)?;
+        elapsed = start.elapsed() - prev_elapsed;
+        tracing::info!("shrink: {:?}", elapsed);
+        prev_elapsed = elapsed;
 
         tracing::info!("verify shrink");
         prover.verify_shrink(&shrink_proof, &vk)?;
+        elapsed = start.elapsed() - prev_elapsed;
+        tracing::info!("verify shrink: {:?}", elapsed);
+        prev_elapsed = elapsed;
 
         if test_kind == Test::Shrink {
             return Ok(());

@@ -15,8 +15,8 @@ release-plonk-bn254:
 
 test-e2e-tachyon:
 	RUSTFLAGS='-C target-cpu=native' \
-	cargo test --features tachyon --package sp1-prover --lib --release -- tests::test_e2e --exact --show-output
+	RUST_LOG=info cargo test --features tachyon --package sp1-prover --lib --release -- tests::test_e2e --exact --show-output
 
 test-e2e:
 	RUSTFLAGS='-C target-cpu=native' \
-	cargo test --package sp1-prover --lib --release -- tests::test_e2e --exact --show-output
+	RUST_LOG=info cargo test --package sp1-prover --lib --release -- tests::test_e2e --exact --show-output
