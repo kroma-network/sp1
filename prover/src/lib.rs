@@ -44,6 +44,7 @@ use sp1_primitives::types::RecursionProgramType;
 use sp1_recursion_circuit::witness::Witnessable;
 use sp1_recursion_compiler::config::InnerConfig;
 use sp1_recursion_compiler::ir::Witness;
+use sp1_recursion_core::air::Block;
 use sp1_recursion_core::{
     air::RecursionPublicValues,
     runtime::{RecursionProgram, Runtime as RecursionRuntime},
@@ -439,11 +440,27 @@ impl<C: SP1ProverComponents> SP1Prover<C> {
         let mut reduce_proofs = Vec::new();
         let shard_batch_size = opts.recursion_opts.shard_batch_size;
         for inputs in core_inputs.chunks(shard_batch_size) {
-            let proofs = inputs
-                .into_par_iter()
+            // FIXME(chokobole): Using into_par_iter() instead of into_iter() may cause a data race,
+            // making the `witness_streams` invalid. The exact cause remains unclear.
+            let witness_streams = inputs
+                .into_iter()
                 .map(|input| {
-                    self.compress_machine_proof(input, &self.recursion_program, &self.rec_pk, opts)
-                        .map(|p| (p, ReduceProgramType::Core))
+                    let mut witness_stream = Vec::new();
+                    witness_stream.extend(input.write());
+                    witness_stream
+                })
+                .collect::<Vec<_>>();
+
+            let proofs = witness_streams
+                .into_par_iter()
+                .map(|witness_stream| {
+                    self.compress_machine_proof(
+                        witness_stream,
+                        &self.recursion_program,
+                        &self.rec_pk,
+                        opts,
+                    )
+                    .map(|p| (p, ReduceProgramType::Core))
                 })
                 .collect::<Result<Vec<_>, _>>()?;
             reduce_proofs.extend(proofs);
@@ -451,11 +468,22 @@ impl<C: SP1ProverComponents> SP1Prover<C> {
 
         // Run the deferred proofs programs.
         for inputs in deferred_inputs.chunks(shard_batch_size) {
-            let proofs = inputs
-                .into_par_iter()
+            // FIXME(chokobole): Using into_par_iter() instead of into_iter() may cause a data race,
+            // making the `witness_streams` invalid. The exact cause remains unclear.
+            let witness_streams = inputs
+                .into_iter()
                 .map(|input| {
+                    let mut witness_stream = Vec::new();
+                    witness_stream.extend(input.write());
+                    witness_stream
+                })
+                .collect::<Vec<_>>();
+
+            let proofs = witness_streams
+                .into_par_iter()
+                .map(|witness_stream| {
                     self.compress_machine_proof(
-                        input,
+                        witness_stream,
                         &self.deferred_program,
                         &self.deferred_pk,
                         opts,
@@ -491,9 +519,11 @@ impl<C: SP1ProverComponents> SP1Prover<C> {
                                 kinds,
                                 is_complete,
                             };
+                            let mut witness_stream = Vec::new();
+                            witness_stream.extend(input.write());
 
                             self.compress_machine_proof(
-                                input,
+                                witness_stream,
                                 &self.compress_program,
                                 &self.compress_pk,
                                 opts,
@@ -519,7 +549,7 @@ impl<C: SP1ProverComponents> SP1Prover<C> {
     /// Generate a proof with the compress machine.
     pub fn compress_machine_proof(
         &self,
-        input: impl Hintable<InnerConfig>,
+        witness_stream: Vec<Vec<Block<BabyBear>>>,
         program: &RecursionProgram<BabyBear>,
         pk: &StarkProvingKey<InnerSC>,
         opts: SP1ProverOpts,
@@ -528,9 +558,6 @@ impl<C: SP1ProverComponents> SP1Prover<C> {
             program,
             self.compress_prover.config().perm.clone(),
         );
-
-        let mut witness_stream = Vec::new();
-        witness_stream.extend(input.write());
 
         runtime.witness_stream = witness_stream.into();
         runtime
