@@ -18,6 +18,7 @@ use p3_symmetric::CryptographicPermutation;
 use p3_symmetric::Permutation;
 pub use program::*;
 pub use record::*;
+use tracing::info;
 pub use utils::*;
 
 use crate::air::{Block, RECURSION_PUBLIC_VALUES_COL_MAP, RECURSIVE_PROOF_NUM_PV_ELTS};
@@ -847,6 +848,7 @@ where
                 }
                 Opcode::HintLen => {
                     let (a_ptr, b_val, c_val) = self.alu_rr(&instruction);
+                    // info!("self.witness_stream.len(): {}", self.witness_stream.len());
                     let a_val: Block<F> =
                         F::from_canonical_usize(self.witness_stream[0].len()).into();
                     self.mw_cpu(a_ptr, a_val, MemoryAccessPosition::A);

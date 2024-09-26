@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 
 use p3_baby_bear::BabyBear;
 use p3_challenger::DuplexChallenger;
@@ -6,10 +6,10 @@ use p3_commit::TwoAdicMultiplicativeCoset;
 use p3_field::TwoAdicField;
 use p3_field::{AbstractExtensionField, AbstractField};
 use sp1_core::air::{MachineAir, Word, PV_DIGEST_NUM_WORDS};
-use sp1_core::stark::StarkGenericConfig;
 use sp1_core::stark::{
     AirOpenedValues, ChipOpenedValues, Com, RiscvAir, ShardCommitment, ShardOpenedValues,
 };
+use sp1_core::stark::{OpeningProof, StarkGenericConfig};
 use sp1_core::util::Readable;
 use sp1_core::utils::{
     BabyBearPoseidon2, InnerChallenge, InnerDigest, InnerDigestHash, InnerPcsProof, InnerPerm,
@@ -522,10 +522,29 @@ where
         let quotient_data = get_chip_quotient_data(self.machine, self.proof);
         let sorted_indices = get_sorted_indices(self.machine, self.proof);
 
+        let json: String = serde_json::to_string_pretty(&self.proof.opening_proof).unwrap();
+        let result = self.proof.opening_proof.write();
+        let tachyon_proof = sp1_core::baby_bear_poseidon2::FriProof::new(
+            sp1_core::baby_bear_poseidon2::ffi::deserialize_json_fri_proof(json.as_bytes()),
+        );
+        let tachyon_result = tachyon_proof.write();
+        if result != tachyon_result {
+            let mut file = std::fs::File::create("opening_proof.json").unwrap();
+            file.write_all(json.as_bytes()).unwrap();
+            let mut file = std::fs::File::create("answer.txt").unwrap();
+            let result_str = format!("{:?}", result);
+            file.write_all(result_str.as_bytes()).unwrap();
+            let mut file = std::fs::File::create("wrong.txt").unwrap();
+            let result_str = format!("{:?}", tachyon_result);
+            file.write_all(result_str.as_bytes()).unwrap();
+            panic!("hint failed (2)");
+        }
+        tracing::info!("***checking done***");
+
         let mut stream = Vec::new();
         stream.extend(self.proof.commitment.write());
         stream.extend(self.proof.opened_values.write());
-        stream.extend(self.proof.opening_proof.write());
+        stream.extend(result);
         stream.extend(self.proof.public_values.write());
         stream.extend(quotient_data.write());
         stream.extend(sorted_indices.write());

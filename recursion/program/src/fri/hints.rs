@@ -182,6 +182,7 @@ impl Hintable<C> for InnerFriProof {
     }
 
     fn write(&self) -> Vec<Vec<Block<<C as Config>::F>>> {
+        tracing::info!("InnerFriProof::write()");
         let mut stream = Vec::new();
 
         stream.extend(Vec::<InnerDigest>::write(
@@ -297,7 +298,9 @@ impl Hintable<C> for InnerPcsProof {
     }
 
     fn write(&self) -> Vec<Vec<Block<<C as Config>::F>>> {
+        tracing::info!("InnerPcsProof::write()");
         let mut stream = Vec::new();
+        tracing::info!("InnerPcsProof::fri_proof::write()");
         stream.extend(self.fri_proof.write());
         stream.extend(self.query_openings.write());
         stream
@@ -317,6 +320,7 @@ impl Hintable<C> for sp1_core::baby_bear_poseidon2::FriProof {
     }
 
     fn write(&self) -> Vec<Vec<Block<<C as Config>::F>>> {
+        tracing::info!("sp1_core::baby_bear_poseidon2::FriProof::write()");
         let buffer = self.write_hint();
         let mut reader = Cursor::new(buffer);
         let values = Vec::<Vec<[u32; 4]>>::read_from(&mut reader).unwrap();
